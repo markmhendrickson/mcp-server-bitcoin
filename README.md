@@ -1,6 +1,6 @@
 # BTC wallet MCP server
 
-This MCP server wraps `execution/scripts/btc_wallet.py` and exposes safe wallet
+This standalone MCP server wraps `btc_wallet.py` and exposes safe wallet
 operations as tools.
 
 ## Tools
@@ -96,10 +96,19 @@ Example response:
 }
 ```
 
+## Setup
+
+1. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Create a `.env` file in this directory (or parent directory) with your wallet configuration.
+
 ## Configuration
 
-Values are read from the repo `.env` file. Provide key material in one of these
-forms.
+The server reads configuration from environment variables or a `.env` file. Provide
+key material in one of these forms:
 
 - `BTC_PRIVATE_KEY` for a WIF private key
 - `BTC_MNEMONIC` for a BIP-39 seed phrase
@@ -107,12 +116,12 @@ forms.
 
 Additional settings:
 
-- `BTC_NETWORK` set to `mainnet` or `testnet`
-- `BTC_DRY_RUN` set to `true` or `false`
+- `BTC_NETWORK` set to `mainnet` or `testnet` (default: testnet)
+- `BTC_DRY_RUN` set to `true` or `false` (default: true)
 - `BTC_MAX_SEND_BTC` optional per transfer limit
 - `BTC_MAX_FEE_SATS` optional max fee cap
 - `BTC_FEE_RATE_SAT_PER_BYTE` optional fixed fee rate
-- `BTC_FEE_TIER` choose fee tier from mempool space
+- `BTC_FEE_TIER` choose fee tier from mempool space (hourFee, halfHourFee, fastestFee)
 
 ## Security
 

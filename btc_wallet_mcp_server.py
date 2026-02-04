@@ -2,14 +2,13 @@
 """
 MCP server for Bitcoin wallet operations.
 
-Wraps execution/scripts/btc_wallet.py as MCP tools.
+Wraps btc_wallet.py as MCP tools.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-import sys
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, List
@@ -19,11 +18,12 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT / "execution" / "scripts"))
-load_dotenv(REPO_ROOT / ".env")
+# Load .env from current directory or parent directories
+SERVER_DIR = Path(__file__).resolve().parent
+load_dotenv(SERVER_DIR / ".env")
+load_dotenv(SERVER_DIR.parent / ".env")
 
-from btc_wallet import (  # noqa: E402
+from btc_wallet import (
     BTCConfig,
     _fetch_btc_prices,
     build_transaction_preview,
