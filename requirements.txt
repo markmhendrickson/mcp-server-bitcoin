@@ -1,2 +1,6 @@
 mcp>=1.0.0
 python-dotenv>=1.0.0
+bip-utils>=2.9.3
+bit>=0.8.0
+python-bitcoinlib>=0.12.2
+requests>=2.31.0
