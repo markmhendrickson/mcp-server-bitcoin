@@ -53,7 +53,7 @@ def test_phase4_tools_in_tool_list():
 def test_total_tool_count():
     """Phase 1 (19) + Phase 2 (18) + Phase 3 (7) + Phase 4 (10) = 54."""
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 54
+    assert len(tools) == 70
 
 
 # ---------------------------------------------------------------------------

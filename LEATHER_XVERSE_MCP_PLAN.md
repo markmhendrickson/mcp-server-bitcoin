@@ -114,37 +114,31 @@ are out of scope for this plan.
 name systems, market data, hardware wallets, and inscription creation.
 **Total tool count**: 25
 
-#### Sub-phase 5A: Transaction Management & Wallet (8 tools)
-**Priority**: Medium -- Useful for power users managing pending transactions.
-**Effort**: 1-2 weeks
-**Dependencies**: Phase 1 (BTC), Phase 2 (STX)
+#### Sub-phase 5A: Transaction Management & Wallet -- COMPLETE (8 tools)
 
-| MCP Tool | Description | Source | Complexity |
-|----------|-------------|--------|-----------|
-| `tx_get_history` | Get transaction history (BTC + STX) with filtering | Leather activity, Xverse history | Low -- REST API calls |
-| `tx_get_status` | Get status of a specific transaction (BTC or STX) | mempool.space / Stacks API | Low -- REST API calls |
-| `tx_speed_up` | Speed up (RBF) a pending BTC transaction | Xverse `rbf.ts` | High -- rebuild + resign tx |
-| `tx_cancel` | Cancel a pending BTC transaction via RBF | Derived from RBF | High -- same as speed_up |
-| `wallet_get_network` | Get current network configuration | Xverse `wallet_getNetwork` | Low -- read config |
-| `wallet_switch_network` | Switch between mainnet/testnet/signet/regtest | Xverse `wallet_changeNetwork` | Low -- write config |
-| `wallet_add_network` | Add a custom network configuration | Xverse `wallet_addNetwork` | Low -- write config |
-| `wallet_get_supported_methods` | List all available MCP tools with descriptions | Leather `supportedMethods` | Low -- introspect |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `tx_get_history` | BTC + STX transaction history (mempool.space + Hiro API) | Done |
+| `tx_get_status` | Transaction status lookup (BTC or STX) | Done |
+| `tx_speed_up` | RBF speed-up for pending BTC transactions | Done |
+| `tx_cancel` | RBF cancel (send funds back to self) | Done |
+| `wallet_get_network` | Current network config and API endpoints | Done |
+| `wallet_switch_network` | Switch mainnet/testnet | Done |
+| `wallet_add_network` | Add custom network with API URLs | Done |
+| `wallet_get_supported_methods` | Introspect all 70 tool names + descriptions | Done |
 
-#### Sub-phase 5B: BNS & Market Data (8 tools)
-**Priority**: Medium -- Valuable for name resolution and portfolio tracking.
-**Effort**: 1-2 weeks
-**Dependencies**: Phase 2 (STX for BNS), Phase 1 (BTC for market data)
+#### Sub-phase 5B: BNS & Market Data -- COMPLETE (8 tools)
 
-| MCP Tool | Description | Source | Complexity |
-|----------|-------------|--------|-----------|
-| `bns_lookup` | Look up a BNS name to resolve STX/BTC address | Leather `@leather.io/queries/bns` | Low -- Hiro BNS API |
-| `bns_get_names` | Get BNS names owned by an address | Leather BNS queries | Low -- Hiro BNS API |
-| `bns_register` | Register a BNS name (contract call) | Stacks BNS contract | Medium -- contract call |
-| `market_get_prices` | Multi-asset prices (BTC, STX, tokens) | CoinGecko, Leather market data | Low -- REST API |
-| `market_get_history` | Price history for charting | Leather market-history queries | Low -- REST API |
-| `portfolio_get_summary` | Full portfolio summary (all assets, all chains) | Xverse portfolio, Leather balances | Medium -- aggregate |
-| `portfolio_get_assets` | List all assets with current values | Leather assets queries | Medium -- aggregate |
-| `portfolio_get_collectibles` | List all collectibles/NFTs across chains | Leather collectibles queries | Medium -- aggregate |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `bns_lookup` | Resolve BNS name to Stacks address (Hiro BNS API) | Done |
+| `bns_get_names` | List BNS names owned by an address | Done |
+| `bns_register` | Register a BNS name via contract call | Done |
+| `market_get_prices` | Multi-asset prices from CoinGecko (BTC, STX, tokens) | Done |
+| `market_get_history` | Price history for charting (daily/hourly) | Done |
+| `portfolio_get_summary` | Full portfolio with USD valuations across BTC + STX | Done |
+| `portfolio_get_assets` | All assets (BTC, STX, fungible tokens) with balances | Done |
+| `portfolio_get_collectibles` | Inscriptions + Stacks NFTs across chains | Done |
 
 #### Sub-phase 5C: Hardware Wallets (5 tools)
 **Priority**: Lower -- Requires physical device access; useful for custody.
@@ -235,8 +229,8 @@ stx_wallet.py                     # STX wallet operations
 | 2 | HIGH | High -- Stacks core | Medium-High | Phase 1 | **DONE** |
 | 3 | HIGH | High -- Ordinals/inscriptions | Medium | Phase 1 | **DONE** |
 | 4 | MEDIUM | Medium-High -- DeFi/swaps | High | Phase 1, 2 | **DONE** |
-| 5A | MEDIUM | Medium -- Tx mgmt & wallet | Low-Medium | Phase 1-2 | Planned |
-| 5B | MEDIUM | Medium -- Names & market data | Low-Medium | Phase 1-2 | Planned |
+| 5A | MEDIUM | Medium -- Tx mgmt & wallet | Low-Medium | Phase 1-2 | **DONE** |
+| 5B | MEDIUM | Medium -- Names & market data | Low-Medium | Phase 1-2 | **DONE** |
 | 5C | LOWER | Lower -- Hardware wallets | High | Phase 1-2 | Planned |
 | 5D | LOWER | Lower -- Inscriptions & onramp | Medium-High | Phase 1, 3 | Planned |
 
@@ -250,11 +244,11 @@ stx_wallet.py                     # STX wallet operations
 | 2 | Stacks (STX) | 18 | **DONE** |
 | 3 | Ordinals & Inscriptions | 7 | **DONE** |
 | 4 | Swaps, DeFi, Bridge, Stacking | 10 | **DONE** |
-| 5A | Tx Management & Wallet | 8 | Planned |
-| 5B | BNS & Market Data | 8 | Planned |
+| 5A | Tx Management & Wallet | 8 | **DONE** |
+| 5B | BNS & Market Data | 8 | **DONE** |
 | 5C | Hardware Wallets | 5 | Planned |
 | 5D | Inscription Creation & Onramp | 4 | Planned |
-| **Total** | | **79** | **54 done** |
+| **Total** | | **79** | **70 done** |
 
 ---
 
@@ -278,8 +272,8 @@ stx_wallet.py                     # STX wallet operations
 | Swaps | **Yes** | Yes (Alex, Bitflow, Velar) | Yes (multi-protocol) | 4 |
 | sBTC Bridge | **Yes** | Yes | No | 4 |
 | Stacking/Yield | **Yes** | Yes | Yes | 4 |
-| RBF/Speed-up | No | No | Yes | 5 |
-| Hardware Wallets | No | Yes (Ledger) | Yes (Ledger + Keystone) | 5 |
-| BNS Names | No | Yes | No | 5 |
-| Portfolio | No | Yes | Yes | 5 |
+| RBF/Speed-up | **Yes** | No | Yes | 5A |
+| Hardware Wallets | No | Yes (Ledger) | Yes (Ledger + Keystone) | 5C |
+| BNS Names | **Yes** | Yes | No | 5B |
+| Portfolio | **Yes** | Yes | Yes | 5B |
 | Inscription Creation | No | No | Yes | 5 |

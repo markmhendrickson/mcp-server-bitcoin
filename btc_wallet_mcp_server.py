@@ -57,6 +57,28 @@ from btc_wallet import (
     verify_message,
 )
 
+from advanced_wallet import (
+    tx_cancel,
+    tx_get_history,
+    tx_get_status,
+    tx_speed_up,
+    wallet_add_network,
+    wallet_get_network,
+    wallet_get_supported_methods,
+    wallet_switch_network,
+)
+
+from bns_market_wallet import (
+    bns_get_names,
+    bns_lookup,
+    bns_register,
+    market_get_history,
+    market_get_prices,
+    portfolio_get_assets,
+    portfolio_get_collectibles,
+    portfolio_get_summary,
+)
+
 from defi_wallet import (
     sbtc_bridge_deposit,
     sbtc_bridge_withdraw,
@@ -1108,6 +1130,181 @@ async def list_tools() -> List[Tool]:
                 },
             },
         ),
+        # ===================================================================
+        # Phase 5A: Transaction Management & Wallet
+        # ===================================================================
+        Tool(
+            name="tx_get_history",
+            description="Get transaction history for BTC and/or STX with filtering.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "chain": {"type": "string", "enum": ["btc", "stx", "both"], "description": "Which chain (default: both)"},
+                    "limit": {"type": "integer", "description": "Page size (default: 20)"},
+                    "offset": {"type": "integer", "description": "Pagination offset"},
+                },
+            },
+        ),
+        Tool(
+            name="tx_get_status",
+            description="Get the status of a specific BTC or STX transaction.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "txid": {"type": "string", "description": "Transaction ID"},
+                    "chain": {"type": "string", "enum": ["btc", "stx"], "description": "Chain (default: btc)"},
+                },
+                "required": ["txid"],
+            },
+        ),
+        Tool(
+            name="tx_speed_up",
+            description="Speed up a pending BTC transaction using Replace-By-Fee (RBF).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "txid": {"type": "string", "description": "Transaction ID to speed up"},
+                    "new_fee_rate": {"type": "integer", "description": "New fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["txid"],
+            },
+        ),
+        Tool(
+            name="tx_cancel",
+            description="Cancel a pending BTC transaction via RBF (sends funds back to self).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "txid": {"type": "string", "description": "Transaction ID to cancel"},
+                    "fee_rate": {"type": "integer", "description": "Fee rate for cancel tx in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["txid"],
+            },
+        ),
+        Tool(
+            name="wallet_get_network",
+            description="Get current wallet network configuration and API endpoints.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="wallet_switch_network",
+            description="Switch between mainnet and testnet.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "network": {"type": "string", "enum": ["mainnet", "testnet"], "description": "Target network"},
+                },
+                "required": ["network"],
+            },
+        ),
+        Tool(
+            name="wallet_add_network",
+            description="Add a custom network with custom API URLs.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Network name"},
+                    "btc_api_url": {"type": "string", "description": "Custom mempool.space URL"},
+                    "stx_api_url": {"type": "string", "description": "Custom Hiro API URL"},
+                },
+                "required": ["name"],
+            },
+        ),
+        Tool(
+            name="wallet_get_supported_methods",
+            description="List all available MCP tools with their names and descriptions.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        # ===================================================================
+        # Phase 5B: BNS & Market Data
+        # ===================================================================
+        Tool(
+            name="bns_lookup",
+            description="Look up a BNS name to resolve its Stacks address.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "BNS name, e.g. 'alice.btc'"},
+                },
+                "required": ["name"],
+            },
+        ),
+        Tool(
+            name="bns_get_names",
+            description="Get BNS names owned by a Stacks address.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "description": "Stacks address (default: wallet)"},
+                },
+            },
+        ),
+        Tool(
+            name="bns_register",
+            description="Register a BNS name via Stacks contract call.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name to register (without namespace)"},
+                    "namespace": {"type": "string", "description": "Namespace (default: btc)"},
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["name"],
+            },
+        ),
+        Tool(
+            name="market_get_prices",
+            description="Get multi-asset prices (BTC, STX, tokens) from CoinGecko.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coins": {
+                        "type": "array", "items": {"type": "string"},
+                        "description": "CoinGecko coin IDs (default: bitcoin, blockstack)",
+                    },
+                    "vs_currencies": {
+                        "type": "array", "items": {"type": "string"},
+                        "description": "Fiat currencies (default: usd, eur)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="market_get_history",
+            description="Get price history for a coin (for charting).",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "coin": {"type": "string", "description": "CoinGecko coin ID (default: bitcoin)"},
+                    "vs_currency": {"type": "string", "description": "Fiat currency (default: usd)"},
+                    "days": {"type": "integer", "description": "Number of days (default: 7)"},
+                    "interval": {"type": "string", "description": "Interval: daily, hourly (default: daily)"},
+                },
+            },
+        ),
+        Tool(
+            name="portfolio_get_summary",
+            description="Full portfolio summary across BTC and STX with USD valuations.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="portfolio_get_assets",
+            description="List all assets (BTC, STX, tokens) with current balances.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="portfolio_get_collectibles",
+            description="List all collectibles: Bitcoin inscriptions and Stacks NFTs.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Max items per chain (default: 20)"},
+                },
+            },
+        ),
     ]
 
 
@@ -1267,6 +1464,46 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_stx_stack(arguments)
         if name == "stx_revoke_delegation":
             return await _handle_stx_revoke_delegation(arguments)
+
+        # =================================================================
+        # Phase 5A: Transaction Management & Wallet
+        # =================================================================
+        if name == "tx_get_history":
+            return await _handle_tx_get_history(arguments)
+        if name == "tx_get_status":
+            return await _handle_tx_get_status(arguments)
+        if name == "tx_speed_up":
+            return await _handle_tx_speed_up(arguments)
+        if name == "tx_cancel":
+            return await _handle_tx_cancel(arguments)
+        if name == "wallet_get_network":
+            return await _handle_wallet_get_network()
+        if name == "wallet_switch_network":
+            return await _handle_wallet_switch_network(arguments)
+        if name == "wallet_add_network":
+            return await _handle_wallet_add_network(arguments)
+        if name == "wallet_get_supported_methods":
+            return await _handle_wallet_get_supported_methods()
+
+        # =================================================================
+        # Phase 5B: BNS & Market Data
+        # =================================================================
+        if name == "bns_lookup":
+            return await _handle_bns_lookup(arguments)
+        if name == "bns_get_names":
+            return await _handle_bns_get_names(arguments)
+        if name == "bns_register":
+            return await _handle_bns_register(arguments)
+        if name == "market_get_prices":
+            return await _handle_market_get_prices(arguments)
+        if name == "market_get_history":
+            return await _handle_market_get_history(arguments)
+        if name == "portfolio_get_summary":
+            return await _handle_portfolio_get_summary()
+        if name == "portfolio_get_assets":
+            return await _handle_portfolio_get_assets()
+        if name == "portfolio_get_collectibles":
+            return await _handle_portfolio_get_collectibles(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -2057,6 +2294,156 @@ async def _handle_stx_stack(arguments: dict[str, Any]) -> List[TextContent]:
 async def _handle_stx_revoke_delegation(arguments: dict[str, Any]) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(stx_revoke_delegation, cfg, arguments.get("dry_run"))
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 5A Handlers -- Transaction Management & Wallet
+# ===========================================================================
+
+
+async def _handle_tx_get_history(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    chain = arguments.get("chain", "both")
+    limit = arguments.get("limit", 20)
+    offset = arguments.get("offset", 0)
+    result = await asyncio.to_thread(tx_get_history, cfg, chain, limit, offset)
+    return _ok_response(result)
+
+
+async def _handle_tx_get_status(arguments: dict[str, Any]) -> List[TextContent]:
+    txid = (arguments.get("txid") or "").strip()
+    if not txid:
+        return _error_response("Missing 'txid' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    chain = arguments.get("chain", "btc")
+    result = await asyncio.to_thread(tx_get_status, cfg, txid, chain)
+    return _ok_response(result)
+
+
+async def _handle_tx_speed_up(arguments: dict[str, Any]) -> List[TextContent]:
+    txid = (arguments.get("txid") or "").strip()
+    if not txid:
+        return _error_response("Missing 'txid' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        tx_speed_up, cfg, txid, arguments.get("new_fee_rate"), arguments.get("dry_run")
+    )
+    return _ok_response(result)
+
+
+async def _handle_tx_cancel(arguments: dict[str, Any]) -> List[TextContent]:
+    txid = (arguments.get("txid") or "").strip()
+    if not txid:
+        return _error_response("Missing 'txid' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        tx_cancel, cfg, txid, arguments.get("fee_rate"), arguments.get("dry_run")
+    )
+    return _ok_response(result)
+
+
+async def _handle_wallet_get_network() -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(wallet_get_network, cfg)
+    return _ok_response(result)
+
+
+async def _handle_wallet_switch_network(arguments: dict[str, Any]) -> List[TextContent]:
+    network = (arguments.get("network") or "").strip()
+    if not network:
+        return _error_response("Missing 'network' parameter.")
+    result = await asyncio.to_thread(wallet_switch_network, network)
+    return _ok_response(result)
+
+
+async def _handle_wallet_add_network(arguments: dict[str, Any]) -> List[TextContent]:
+    name = (arguments.get("name") or "").strip()
+    if not name:
+        return _error_response("Missing 'name' parameter.")
+    result = await asyncio.to_thread(
+        wallet_add_network, name, arguments.get("btc_api_url"), arguments.get("stx_api_url")
+    )
+    return _ok_response(result)
+
+
+async def _handle_wallet_get_supported_methods() -> List[TextContent]:
+    # Introspect the tool list
+    tools = await list_tools()
+    methods = [{"name": t.name, "description": t.description} for t in tools]
+    return _ok_response({"methods": methods, "count": len(methods)})
+
+
+# ===========================================================================
+# Phase 5B Handlers -- BNS & Market Data
+# ===========================================================================
+
+
+async def _handle_bns_lookup(arguments: dict[str, Any]) -> List[TextContent]:
+    name = (arguments.get("name") or "").strip()
+    if not name:
+        return _error_response("Missing 'name' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(bns_lookup, cfg, name)
+    return _ok_response(result)
+
+
+async def _handle_bns_get_names(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    address = (arguments.get("address") or "").strip() or None
+    result = await asyncio.to_thread(bns_get_names, cfg, address)
+    return _ok_response(result)
+
+
+async def _handle_bns_register(arguments: dict[str, Any]) -> List[TextContent]:
+    name = (arguments.get("name") or "").strip()
+    if not name:
+        return _error_response("Missing 'name' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        bns_register, cfg, name, arguments.get("namespace", "btc"),
+        arguments.get("fee"), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_market_get_prices(arguments: dict[str, Any]) -> List[TextContent]:
+    coins = arguments.get("coins")
+    vs_currencies = arguments.get("vs_currencies")
+    result = await asyncio.to_thread(market_get_prices, coins, vs_currencies)
+    return _ok_response(result)
+
+
+async def _handle_market_get_history(arguments: dict[str, Any]) -> List[TextContent]:
+    result = await asyncio.to_thread(
+        market_get_history,
+        arguments.get("coin", "bitcoin"),
+        arguments.get("vs_currency", "usd"),
+        arguments.get("days", 7),
+        arguments.get("interval", "daily"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_portfolio_get_summary() -> List[TextContent]:
+    btc_cfg = await asyncio.to_thread(BTCConfig.from_env)
+    stx_cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(portfolio_get_summary, btc_cfg, stx_cfg)
+    return _ok_response(result)
+
+
+async def _handle_portfolio_get_assets() -> List[TextContent]:
+    btc_cfg = await asyncio.to_thread(BTCConfig.from_env)
+    stx_cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(portfolio_get_assets, btc_cfg, stx_cfg)
+    return _ok_response(result)
+
+
+async def _handle_portfolio_get_collectibles(arguments: dict[str, Any]) -> List[TextContent]:
+    btc_cfg = await asyncio.to_thread(BTCConfig.from_env)
+    stx_cfg = await asyncio.to_thread(STXConfig.from_env)
+    limit = arguments.get("limit", 20)
+    result = await asyncio.to_thread(portfolio_get_collectibles, btc_cfg, stx_cfg, limit)
     return _ok_response(result)
 
 

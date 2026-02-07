@@ -717,6 +717,62 @@ Revoke stacking delegation via the PoX contract.
 
 ---
 
+## Phase 5A: Transaction Management & Wallet Tools
+
+#### `tx_get_history`
+Get transaction history for BTC and/or STX. `{"chain": "both", "limit": 20}`
+
+#### `tx_get_status`
+Get status of a specific transaction. `{"txid": "abc...", "chain": "btc"}`
+
+#### `tx_speed_up`
+Speed up a pending BTC transaction via RBF. `{"txid": "abc...", "dry_run": true}`
+
+#### `tx_cancel`
+Cancel a pending BTC transaction (sends funds back to self). `{"txid": "abc...", "dry_run": true}`
+
+#### `wallet_get_network`
+Get current network config, API endpoints, fee settings.
+
+#### `wallet_switch_network`
+Switch between mainnet and testnet. `{"network": "mainnet"}`
+
+#### `wallet_add_network`
+Add custom network with API URLs. `{"name": "custom", "btc_api_url": "..."}`
+
+#### `wallet_get_supported_methods`
+List all 70 available MCP tools with descriptions.
+
+---
+
+## Phase 5B: BNS & Market Data Tools
+
+#### `bns_lookup`
+Resolve a BNS name to its Stacks address. `{"name": "alice.btc"}`
+
+#### `bns_get_names`
+Get BNS names owned by an address. `{"address": "SP..."}`
+
+#### `bns_register`
+Register a BNS name. `{"name": "myname", "namespace": "btc", "dry_run": true}`
+
+#### `market_get_prices`
+Multi-asset prices from CoinGecko. `{"coins": ["bitcoin", "blockstack"]}`
+
+#### `market_get_history`
+Price history for charting. `{"coin": "bitcoin", "days": 30, "interval": "daily"}`
+
+#### `portfolio_get_summary`
+Full portfolio summary with USD valuations across BTC and STX.
+
+#### `portfolio_get_assets`
+List all assets (BTC, STX, fungible tokens) with balances.
+
+#### `portfolio_get_collectibles`
+List all collectibles: Bitcoin inscriptions and Stacks NFTs. `{"limit": 20}`
+
+---
+
 ## Cursor MCP config example
 
 Add to `.cursor/mcp.json`:
@@ -734,5 +790,4 @@ Add to `.cursor/mcp.json`:
 ## Roadmap
 
 See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining Phase 5
-sub-phases covering transaction management, BNS, market data, hardware wallets,
-inscription creation, and fiat onramp.
+sub-phases: 5C (hardware wallets) and 5D (inscription creation, fiat onramp).
