@@ -96,9 +96,13 @@ def test_list_tools_includes_all_phase1_tools():
 
 
 def test_list_tools_count():
-    """Phase 1 should have 19 tools total (4 original + 15 new)."""
+    """Phase 1 (19 BTC) + Phase 2 (18 STX) = 37 tools total."""
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 19
+    btc_count = sum(1 for t in tools if t.name.startswith("btc_"))
+    stx_count = sum(1 for t in tools if t.name.startswith("stx_"))
+    assert btc_count == 19
+    assert stx_count == 18
+    assert len(tools) == 37
 
 
 def test_get_addresses_returns_all_types(monkeypatch):

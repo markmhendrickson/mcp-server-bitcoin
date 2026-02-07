@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-MCP server for Bitcoin wallet operations.
+MCP server for Bitcoin and Stacks wallet operations.
 
-Phase 1: Core Bitcoin Enhancement -- 16 tools covering addresses, accounts,
+Phase 1: Core Bitcoin Enhancement -- 19 tools covering addresses, accounts,
 sending (multi-recipient, sweep, consolidate), PSBT, message signing,
 fee management, and UTXO management.
 
-Wraps btc_wallet.py as MCP tools.
+Phase 2: Stacks (STX) Support -- 17 tools covering STX addresses, balances,
+transfers (STX, SIP-10 FT, SIP-9 NFT), contract calls/deploys, read-only
+contract queries, transaction signing, message signing, and utilities.
+
+Wraps btc_wallet.py and stx_wallet.py as MCP tools.
 """
 
 from __future__ import annotations
@@ -48,6 +52,28 @@ from btc_wallet import (
     sign_message,
     sign_psbt,
     verify_message,
+)
+
+from stx_wallet import (
+    STXConfig,
+    stx_call_contract,
+    stx_deploy_contract,
+    stx_estimate_fee,
+    stx_get_accounts,
+    stx_get_addresses,
+    stx_get_balance,
+    stx_get_networks,
+    stx_get_nonce,
+    stx_preview_transfer,
+    stx_read_contract,
+    stx_sign_message,
+    stx_sign_structured_message,
+    stx_sign_transaction,
+    stx_sign_transactions,
+    stx_transfer_sip9_nft,
+    stx_transfer_sip10_ft,
+    stx_transfer_stx,
+    stx_update_profile,
 )
 
 app = Server("btc_wallet")
@@ -452,6 +478,298 @@ async def list_tools() -> List[Tool]:
                 "required": ["txid", "vout"],
             },
         ),
+        # ===================================================================
+        # Phase 2: Stacks (STX) Support
+        # ===================================================================
+        # -- 2.1 Stacks Address & Account Management --
+        Tool(
+            name="stx_get_addresses",
+            description="Get Stacks addresses with public keys and derivation paths.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_get_accounts",
+            description=(
+                "Get Stacks accounts with balances (STX), locked amounts, and nonces. "
+                "Queries the Hiro Stacks API."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_get_balance",
+            description=(
+                "Get STX balance and all fungible/non-fungible token balances for an address."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address (default: wallet address)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="stx_get_networks",
+            description="List available Stacks networks (mainnet, testnet) with chain IDs.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        # -- 2.2 STX Transfers --
+        Tool(
+            name="stx_transfer_stx",
+            description=(
+                "Transfer STX to a recipient. Amount in micro-STX (1 STX = 1,000,000 uSTX). "
+                "Supports optional memo. Requires explicit user confirmation."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "amount_ustx": {
+                        "type": "integer",
+                        "description": "Amount in micro-STX (1 STX = 1000000 uSTX)",
+                    },
+                    "memo": {"type": "string", "description": "Optional memo (max 34 bytes)"},
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, build and sign but do not broadcast (default: true)",
+                    },
+                },
+                "required": ["recipient", "amount_ustx"],
+            },
+        ),
+        Tool(
+            name="stx_preview_transfer",
+            description=(
+                "Preview an STX transfer with fee estimation and balance check. "
+                "Call before stx_transfer_stx to verify details."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "amount_ustx": {
+                        "type": "integer",
+                        "description": "Amount in micro-STX",
+                    },
+                    "memo": {"type": "string", "description": "Optional memo"},
+                },
+                "required": ["recipient", "amount_ustx"],
+            },
+        ),
+        Tool(
+            name="stx_transfer_sip10_ft",
+            description=(
+                "Transfer a SIP-10 fungible token. Calls the token contract's "
+                "'transfer' function."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "asset": {
+                        "type": "string",
+                        "description": "Fully qualified asset: 'address.contract-name::token-name'",
+                    },
+                    "amount": {"type": "integer", "description": "Amount to transfer"},
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["recipient", "asset", "amount"],
+            },
+        ),
+        Tool(
+            name="stx_transfer_sip9_nft",
+            description=(
+                "Transfer a SIP-9 non-fungible token. Calls the NFT contract's "
+                "'transfer' function."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "asset": {
+                        "type": "string",
+                        "description": "Fully qualified asset: 'address.contract-name::nft-name'",
+                    },
+                    "asset_id": {"type": "string", "description": "NFT identifier (uint)"},
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["recipient", "asset", "asset_id"],
+            },
+        ),
+        # -- 2.3 Smart Contract Interaction --
+        Tool(
+            name="stx_call_contract",
+            description=(
+                "Call a public Clarity smart contract function. "
+                "Args use Clarity notation: u100 (uint), 'SPaddr (principal), true/false (bool)."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_address": {"type": "string", "description": "Contract deployer address"},
+                    "contract_name": {"type": "string", "description": "Contract name"},
+                    "function_name": {"type": "string", "description": "Function to call"},
+                    "function_args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Clarity-encoded arguments: u100, 'SPaddr, true, none, 0xBEEF, \"text\"",
+                    },
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["contract_address", "contract_name", "function_name"],
+            },
+        ),
+        Tool(
+            name="stx_deploy_contract",
+            description="Deploy a Clarity smart contract to the Stacks blockchain.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_name": {"type": "string", "description": "Name for the contract"},
+                    "clarity_code": {"type": "string", "description": "Clarity source code"},
+                    "clarity_version": {
+                        "type": "integer",
+                        "description": "Clarity version (default: 2)",
+                    },
+                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
+                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["contract_name", "clarity_code"],
+            },
+        ),
+        Tool(
+            name="stx_read_contract",
+            description=(
+                "Read-only call to a Clarity contract function (no transaction needed). "
+                "Returns the function result without modifying state."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_address": {"type": "string", "description": "Contract deployer address"},
+                    "contract_name": {"type": "string", "description": "Contract name"},
+                    "function_name": {"type": "string", "description": "Function to call"},
+                    "function_args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Clarity-encoded arguments",
+                    },
+                    "sender": {
+                        "type": "string",
+                        "description": "Optional sender address for the read call",
+                    },
+                },
+                "required": ["contract_address", "contract_name", "function_name"],
+            },
+        ),
+        # -- 2.4 Stacks Transaction Signing --
+        Tool(
+            name="stx_sign_transaction",
+            description=(
+                "Sign a serialized Stacks transaction (SIP-30 compatible). "
+                "Takes hex-encoded unsigned transaction, returns signed hex."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "tx_hex": {"type": "string", "description": "Hex-encoded unsigned transaction"},
+                },
+                "required": ["tx_hex"],
+            },
+        ),
+        Tool(
+            name="stx_sign_transactions",
+            description="Sign multiple Stacks transactions in batch.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "tx_hexes": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of hex-encoded unsigned transactions",
+                    },
+                },
+                "required": ["tx_hexes"],
+            },
+        ),
+        # -- 2.5 Stacks Message Signing --
+        Tool(
+            name="stx_sign_message",
+            description=(
+                "Sign a UTF-8 message on Stacks. Returns recoverable ECDSA signature "
+                "and public key."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string", "description": "Message to sign"},
+                },
+                "required": ["message"],
+            },
+        ),
+        Tool(
+            name="stx_sign_structured_message",
+            description=(
+                "Sign SIP-018 structured data. Takes a domain and message, "
+                "returns signature and public key."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "domain": {"type": "string", "description": "SIP-018 domain string"},
+                    "message": {"type": "string", "description": "SIP-018 message string"},
+                },
+                "required": ["domain", "message"],
+            },
+        ),
+        # -- 2.6 Stacks Utilities --
+        Tool(
+            name="stx_get_nonce",
+            description="Get the current nonce for a Stacks address.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address (default: wallet address)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="stx_estimate_fee",
+            description="Estimate Stacks transaction fee in micro-STX.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_update_profile",
+            description=(
+                "Update an on-chain profile (schema.org/Person). "
+                "Requires a registered BNS name."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "person": {
+                        "type": "object",
+                        "description": "schema.org/Person object with profile fields",
+                    },
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["person"],
+            },
+        ),
     ]
 
 
@@ -517,6 +835,58 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_list_utxos(arguments)
         if name == "btc_get_utxo_details":
             return await _handle_get_utxo_details(arguments)
+
+        # =================================================================
+        # Phase 2: Stacks (STX) Support
+        # =================================================================
+
+        # 2.1 Stacks Address & Account Management
+        if name == "stx_get_addresses":
+            return await _handle_stx_get_addresses()
+        if name == "stx_get_accounts":
+            return await _handle_stx_get_accounts()
+        if name == "stx_get_balance":
+            return await _handle_stx_get_balance(arguments)
+        if name == "stx_get_networks":
+            return await _handle_stx_get_networks()
+
+        # 2.2 STX Transfers
+        if name == "stx_transfer_stx":
+            return await _handle_stx_transfer_stx(arguments)
+        if name == "stx_preview_transfer":
+            return await _handle_stx_preview_transfer(arguments)
+        if name == "stx_transfer_sip10_ft":
+            return await _handle_stx_transfer_sip10_ft(arguments)
+        if name == "stx_transfer_sip9_nft":
+            return await _handle_stx_transfer_sip9_nft(arguments)
+
+        # 2.3 Smart Contract Interaction
+        if name == "stx_call_contract":
+            return await _handle_stx_call_contract(arguments)
+        if name == "stx_deploy_contract":
+            return await _handle_stx_deploy_contract(arguments)
+        if name == "stx_read_contract":
+            return await _handle_stx_read_contract(arguments)
+
+        # 2.4 Stacks Transaction Signing
+        if name == "stx_sign_transaction":
+            return await _handle_stx_sign_transaction(arguments)
+        if name == "stx_sign_transactions":
+            return await _handle_stx_sign_transactions(arguments)
+
+        # 2.5 Stacks Message Signing
+        if name == "stx_sign_message":
+            return await _handle_stx_sign_message(arguments)
+        if name == "stx_sign_structured_message":
+            return await _handle_stx_sign_structured_message(arguments)
+
+        # 2.6 Stacks Utilities
+        if name == "stx_get_nonce":
+            return await _handle_stx_get_nonce(arguments)
+        if name == "stx_estimate_fee":
+            return await _handle_stx_estimate_fee()
+        if name == "stx_update_profile":
+            return await _handle_stx_update_profile(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -846,6 +1216,283 @@ async def _handle_get_utxo_details(arguments: dict[str, Any]) -> List[TextConten
 
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     result = await asyncio.to_thread(get_utxo_details, cfg, txid, int(vout))
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 2 Handlers -- Stacks (STX)
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 2.1 Stacks Address & Account Management
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_get_addresses() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    addresses = await asyncio.to_thread(stx_get_addresses, cfg)
+    return _ok_response({"addresses": addresses, "network": cfg.network})
+
+
+async def _handle_stx_get_accounts() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    accounts = await asyncio.to_thread(stx_get_accounts, cfg)
+    return _ok_response({"accounts": accounts, "network": cfg.network})
+
+
+async def _handle_stx_get_balance(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    address = (arguments.get("address") or "").strip() or None
+    result = await asyncio.to_thread(stx_get_balance, cfg, address)
+    result["network"] = cfg.network
+    return _ok_response(result)
+
+
+async def _handle_stx_get_networks() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_get_networks, cfg)
+    return _ok_response(result)
+
+
+# ---------------------------------------------------------------------------
+# 2.2 STX Transfers
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_transfer_stx(arguments: dict[str, Any]) -> List[TextContent]:
+    recipient = (arguments.get("recipient") or "").strip()
+    if not recipient:
+        return _error_response("Missing 'recipient' parameter.")
+    amount_ustx = arguments.get("amount_ustx")
+    if amount_ustx is None:
+        return _error_response("Missing 'amount_ustx' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_transfer_stx,
+        cfg,
+        recipient,
+        int(amount_ustx),
+        arguments.get("memo", ""),
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_preview_transfer(arguments: dict[str, Any]) -> List[TextContent]:
+    recipient = (arguments.get("recipient") or "").strip()
+    if not recipient:
+        return _error_response("Missing 'recipient' parameter.")
+    amount_ustx = arguments.get("amount_ustx")
+    if amount_ustx is None:
+        return _error_response("Missing 'amount_ustx' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_preview_transfer, cfg, recipient, int(amount_ustx), arguments.get("memo", "")
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_transfer_sip10_ft(arguments: dict[str, Any]) -> List[TextContent]:
+    recipient = (arguments.get("recipient") or "").strip()
+    asset = (arguments.get("asset") or "").strip()
+    amount = arguments.get("amount")
+    if not recipient:
+        return _error_response("Missing 'recipient' parameter.")
+    if not asset:
+        return _error_response("Missing 'asset' parameter.")
+    if amount is None:
+        return _error_response("Missing 'amount' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_transfer_sip10_ft,
+        cfg, recipient, asset, int(amount),
+        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_transfer_sip9_nft(arguments: dict[str, Any]) -> List[TextContent]:
+    recipient = (arguments.get("recipient") or "").strip()
+    asset = (arguments.get("asset") or "").strip()
+    asset_id = (arguments.get("asset_id") or "").strip()
+    if not recipient:
+        return _error_response("Missing 'recipient' parameter.")
+    if not asset:
+        return _error_response("Missing 'asset' parameter.")
+    if not asset_id:
+        return _error_response("Missing 'asset_id' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_transfer_sip9_nft,
+        cfg, recipient, asset, asset_id,
+        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+# ---------------------------------------------------------------------------
+# 2.3 Smart Contract Interaction
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_call_contract(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_address = (arguments.get("contract_address") or "").strip()
+    contract_name = (arguments.get("contract_name") or "").strip()
+    function_name = (arguments.get("function_name") or "").strip()
+    if not contract_address:
+        return _error_response("Missing 'contract_address' parameter.")
+    if not contract_name:
+        return _error_response("Missing 'contract_name' parameter.")
+    if not function_name:
+        return _error_response("Missing 'function_name' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_call_contract,
+        cfg, contract_address, contract_name, function_name,
+        arguments.get("function_args"),
+        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_deploy_contract(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_name = (arguments.get("contract_name") or "").strip()
+    clarity_code = arguments.get("clarity_code", "")
+    if not contract_name:
+        return _error_response("Missing 'contract_name' parameter.")
+    if not clarity_code:
+        return _error_response("Missing 'clarity_code' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_deploy_contract,
+        cfg, contract_name, clarity_code,
+        arguments.get("clarity_version", 2),
+        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_read_contract(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_address = (arguments.get("contract_address") or "").strip()
+    contract_name = (arguments.get("contract_name") or "").strip()
+    function_name = (arguments.get("function_name") or "").strip()
+    if not contract_address:
+        return _error_response("Missing 'contract_address' parameter.")
+    if not contract_name:
+        return _error_response("Missing 'contract_name' parameter.")
+    if not function_name:
+        return _error_response("Missing 'function_name' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_read_contract,
+        cfg, contract_address, contract_name, function_name,
+        arguments.get("function_args"), arguments.get("sender"),
+    )
+    return _ok_response(result)
+
+
+# ---------------------------------------------------------------------------
+# 2.4 Stacks Transaction Signing
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_sign_transaction(arguments: dict[str, Any]) -> List[TextContent]:
+    tx_hex = (arguments.get("tx_hex") or "").strip()
+    if not tx_hex:
+        return _error_response("Missing 'tx_hex' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_sign_transaction, cfg, tx_hex)
+    result["network"] = cfg.network
+    return _ok_response(result)
+
+
+async def _handle_stx_sign_transactions(arguments: dict[str, Any]) -> List[TextContent]:
+    tx_hexes = arguments.get("tx_hexes")
+    if not tx_hexes or not isinstance(tx_hexes, list):
+        return _error_response("Missing or invalid 'tx_hexes' array.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    results = await asyncio.to_thread(stx_sign_transactions, cfg, tx_hexes)
+    return _ok_response({"results": results, "count": len(results), "network": cfg.network})
+
+
+# ---------------------------------------------------------------------------
+# 2.5 Stacks Message Signing
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_sign_message(arguments: dict[str, Any]) -> List[TextContent]:
+    message = arguments.get("message", "")
+    if not message:
+        return _error_response("Missing 'message' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_sign_message, cfg, message)
+    result["network"] = cfg.network
+    return _ok_response(result)
+
+
+async def _handle_stx_sign_structured_message(arguments: dict[str, Any]) -> List[TextContent]:
+    domain = arguments.get("domain", "")
+    message = arguments.get("message", "")
+    if not domain:
+        return _error_response("Missing 'domain' parameter.")
+    if not message:
+        return _error_response("Missing 'message' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_sign_structured_message, cfg, domain, message)
+    result["network"] = cfg.network
+    return _ok_response(result)
+
+
+# ---------------------------------------------------------------------------
+# 2.6 Stacks Utilities
+# ---------------------------------------------------------------------------
+
+
+async def _handle_stx_get_nonce(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    address = (arguments.get("address") or "").strip() or None
+    nonce = await asyncio.to_thread(stx_get_nonce, cfg, address)
+    return _ok_response({
+        "address": address or cfg.stx_address,
+        "nonce": nonce,
+        "network": cfg.network,
+    })
+
+
+async def _handle_stx_estimate_fee() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    fee = await asyncio.to_thread(stx_estimate_fee, cfg)
+    return _ok_response({
+        "fee_ustx": fee,
+        "fee_stx": str(Decimal(fee) / Decimal("1000000")),
+        "network": cfg.network,
+    })
+
+
+async def _handle_stx_update_profile(arguments: dict[str, Any]) -> List[TextContent]:
+    person = arguments.get("person")
+    if not person:
+        return _error_response("Missing 'person' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_update_profile, cfg, person,
+        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+    )
     return _ok_response(result)
 
 
