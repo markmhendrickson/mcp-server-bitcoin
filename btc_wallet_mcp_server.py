@@ -57,6 +57,19 @@ from btc_wallet import (
     verify_message,
 )
 
+from defi_wallet import (
+    sbtc_bridge_deposit,
+    sbtc_bridge_withdraw,
+    sbtc_get_balance,
+    stx_get_stacking_info,
+    stx_revoke_delegation,
+    stx_stack,
+    swap_execute,
+    swap_get_history,
+    swap_get_quote,
+    swap_get_supported_pairs,
+)
+
 from ord_wallet import (
     ord_extract_from_utxo,
     ord_get_inscription_details,
@@ -934,6 +947,167 @@ async def list_tools() -> List[Tool]:
                 },
             },
         ),
+        # ===================================================================
+        # Phase 4: Swaps, DeFi & Bridge
+        # ===================================================================
+        # -- 4.1 Swap Operations --
+        Tool(
+            name="swap_get_supported_pairs",
+            description="List supported swap pairs and protocols from Alex DEX.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="swap_get_quote",
+            description=(
+                "Get a swap quote with estimated output, exchange rate, and fees. "
+                "Uses Alex DEX token prices."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "token_in": {
+                        "type": "string",
+                        "description": "Input token contract ID (or 'STX' for native STX)",
+                    },
+                    "token_out": {
+                        "type": "string",
+                        "description": "Output token contract ID (or 'STX')",
+                    },
+                    "amount": {
+                        "type": "integer",
+                        "description": "Amount of token_in in smallest unit",
+                    },
+                    "protocol": {
+                        "type": "string",
+                        "description": "DEX protocol (default: alex)",
+                    },
+                },
+                "required": ["token_in", "token_out", "amount"],
+            },
+        ),
+        Tool(
+            name="swap_execute",
+            description=(
+                "Execute a token swap via DEX smart contract call. "
+                "Gets a quote, then calls the swap router contract."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "token_in": {"type": "string", "description": "Input token contract ID or 'STX'"},
+                    "token_out": {"type": "string", "description": "Output token contract ID or 'STX'"},
+                    "amount": {"type": "integer", "description": "Amount of token_in"},
+                    "min_output": {
+                        "type": "integer",
+                        "description": "Minimum acceptable output (slippage protection)",
+                    },
+                    "protocol": {"type": "string", "description": "DEX protocol (default: alex)"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["token_in", "token_out", "amount"],
+            },
+        ),
+        Tool(
+            name="swap_get_history",
+            description="Get swap transaction history from on-chain activity.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Page size (default: 20)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+            },
+        ),
+        # -- 4.2 sBTC Bridge --
+        Tool(
+            name="sbtc_get_balance",
+            description="Get sBTC token balance for the wallet.",
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="sbtc_bridge_deposit",
+            description=(
+                "Get deposit information for bridging BTC to sBTC. "
+                "Returns the deposit intent details."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "amount_sats": {
+                        "type": "integer",
+                        "description": "Amount in satoshis to bridge to sBTC",
+                    },
+                    "dry_run": {"type": "boolean", "description": "If true, info only"},
+                },
+                "required": ["amount_sats"],
+            },
+        ),
+        Tool(
+            name="sbtc_bridge_withdraw",
+            description=(
+                "Get withdrawal information for converting sBTC back to BTC."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "amount_sats": {
+                        "type": "integer",
+                        "description": "Amount in satoshis to withdraw",
+                    },
+                    "btc_address": {
+                        "type": "string",
+                        "description": "BTC address to receive the withdrawn BTC",
+                    },
+                    "dry_run": {"type": "boolean", "description": "If true, info only"},
+                },
+                "required": ["amount_sats", "btc_address"],
+            },
+        ),
+        # -- 4.3 Yield / Stacking --
+        Tool(
+            name="stx_get_stacking_info",
+            description=(
+                "Get current PoX stacking status, cycle info, thresholds, "
+                "and wallet stacking state."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_stack",
+            description=(
+                "Initiate STX stacking (solo). Locks STX for reward cycles "
+                "and earns BTC rewards at the specified pox_address."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "amount_ustx": {
+                        "type": "integer",
+                        "description": "Amount to stack in micro-STX",
+                    },
+                    "pox_address": {
+                        "type": "string",
+                        "description": "BTC address for reward payouts",
+                    },
+                    "num_cycles": {
+                        "type": "integer",
+                        "description": "Number of cycles to stack (1-12, default: 1)",
+                    },
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["amount_ustx", "pox_address"],
+            },
+        ),
+        Tool(
+            name="stx_revoke_delegation",
+            description="Revoke stacking delegation via the PoX contract.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+            },
+        ),
     ]
 
 
@@ -1069,6 +1243,30 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_ord_recover_bitcoin(arguments)
         if name == "ord_recover_ordinals":
             return await _handle_ord_recover_ordinals(arguments)
+
+        # =================================================================
+        # Phase 4: Swaps, DeFi & Bridge
+        # =================================================================
+        if name == "swap_get_supported_pairs":
+            return await _handle_swap_get_supported_pairs()
+        if name == "swap_get_quote":
+            return await _handle_swap_get_quote(arguments)
+        if name == "swap_execute":
+            return await _handle_swap_execute(arguments)
+        if name == "swap_get_history":
+            return await _handle_swap_get_history(arguments)
+        if name == "sbtc_get_balance":
+            return await _handle_sbtc_get_balance()
+        if name == "sbtc_bridge_deposit":
+            return await _handle_sbtc_bridge_deposit(arguments)
+        if name == "sbtc_bridge_withdraw":
+            return await _handle_sbtc_bridge_withdraw(arguments)
+        if name == "stx_get_stacking_info":
+            return await _handle_stx_get_stacking_info()
+        if name == "stx_stack":
+            return await _handle_stx_stack(arguments)
+        if name == "stx_revoke_delegation":
+            return await _handle_stx_revoke_delegation(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -1749,6 +1947,116 @@ async def _handle_ord_recover_ordinals(arguments: dict[str, Any]) -> List[TextCo
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
     result = await asyncio.to_thread(ord_recover_ordinals, cfg, outpoint, fee_rate, dry_run)
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 4 Handlers -- Swaps, DeFi & Bridge
+# ===========================================================================
+
+
+async def _handle_swap_get_supported_pairs() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(swap_get_supported_pairs, cfg)
+    return _ok_response(result)
+
+
+async def _handle_swap_get_quote(arguments: dict[str, Any]) -> List[TextContent]:
+    token_in = (arguments.get("token_in") or "").strip()
+    token_out = (arguments.get("token_out") or "").strip()
+    amount = arguments.get("amount")
+    if not token_in:
+        return _error_response("Missing 'token_in' parameter.")
+    if not token_out:
+        return _error_response("Missing 'token_out' parameter.")
+    if amount is None:
+        return _error_response("Missing 'amount' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    protocol = arguments.get("protocol", "alex")
+    result = await asyncio.to_thread(swap_get_quote, cfg, token_in, token_out, int(amount), protocol)
+    return _ok_response(result)
+
+
+async def _handle_swap_execute(arguments: dict[str, Any]) -> List[TextContent]:
+    token_in = (arguments.get("token_in") or "").strip()
+    token_out = (arguments.get("token_out") or "").strip()
+    amount = arguments.get("amount")
+    if not token_in:
+        return _error_response("Missing 'token_in' parameter.")
+    if not token_out:
+        return _error_response("Missing 'token_out' parameter.")
+    if amount is None:
+        return _error_response("Missing 'amount' parameter.")
+
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        swap_execute, cfg, token_in, token_out, int(amount),
+        arguments.get("min_output"), arguments.get("protocol", "alex"),
+        arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_swap_get_history(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    limit = arguments.get("limit", 20)
+    offset = arguments.get("offset", 0)
+    result = await asyncio.to_thread(swap_get_history, cfg, limit, offset)
+    return _ok_response(result)
+
+
+async def _handle_sbtc_get_balance() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(sbtc_get_balance, cfg)
+    return _ok_response(result)
+
+
+async def _handle_sbtc_bridge_deposit(arguments: dict[str, Any]) -> List[TextContent]:
+    amount_sats = arguments.get("amount_sats")
+    if amount_sats is None:
+        return _error_response("Missing 'amount_sats' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(sbtc_bridge_deposit, cfg, int(amount_sats), arguments.get("dry_run"))
+    return _ok_response(result)
+
+
+async def _handle_sbtc_bridge_withdraw(arguments: dict[str, Any]) -> List[TextContent]:
+    amount_sats = arguments.get("amount_sats")
+    btc_address = (arguments.get("btc_address") or "").strip()
+    if amount_sats is None:
+        return _error_response("Missing 'amount_sats' parameter.")
+    if not btc_address:
+        return _error_response("Missing 'btc_address' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(sbtc_bridge_withdraw, cfg, int(amount_sats), btc_address, arguments.get("dry_run"))
+    return _ok_response(result)
+
+
+async def _handle_stx_get_stacking_info() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_get_stacking_info, cfg)
+    return _ok_response(result)
+
+
+async def _handle_stx_stack(arguments: dict[str, Any]) -> List[TextContent]:
+    amount_ustx = arguments.get("amount_ustx")
+    pox_address = (arguments.get("pox_address") or "").strip()
+    if amount_ustx is None:
+        return _error_response("Missing 'amount_ustx' parameter.")
+    if not pox_address:
+        return _error_response("Missing 'pox_address' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_stack, cfg, int(amount_ustx), pox_address,
+        arguments.get("num_cycles", 1), arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_revoke_delegation(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_revoke_delegation, cfg, arguments.get("dry_run"))
     return _ok_response(result)
 
 

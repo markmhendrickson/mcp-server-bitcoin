@@ -647,6 +647,76 @@ inscription-bearing UTXOs to the ordinals (taproot) address.
 
 ---
 
+## Phase 4: Swaps, DeFi & Bridge Tools
+
+### Swap Operations
+
+#### `swap_get_supported_pairs`
+
+List supported swap pairs and protocols from Alex DEX.
+
+#### `swap_get_quote`
+
+Get a swap quote with estimated output, exchange rate, and fees.
+
+```json
+{"token_in": "STX", "token_out": "SP102...token-alex", "amount": 1000000}
+```
+
+#### `swap_execute`
+
+Execute a token swap via DEX smart contract call.
+
+```json
+{"token_in": "STX", "token_out": "SP102...token-alex", "amount": 1000000, "dry_run": true}
+```
+
+#### `swap_get_history`
+
+Get swap transaction history from on-chain activity.
+
+### sBTC Bridge
+
+#### `sbtc_get_balance`
+
+Get sBTC token balance for the wallet.
+
+#### `sbtc_bridge_deposit`
+
+Get deposit information for bridging BTC to sBTC.
+
+```json
+{"amount_sats": 100000, "dry_run": true}
+```
+
+#### `sbtc_bridge_withdraw`
+
+Get withdrawal information for converting sBTC back to BTC.
+
+```json
+{"amount_sats": 50000, "btc_address": "bc1q...", "dry_run": true}
+```
+
+### Yield / Stacking
+
+#### `stx_get_stacking_info`
+
+Get current PoX stacking status, cycle info, thresholds, and wallet stacking state.
+
+#### `stx_stack`
+
+Initiate STX solo stacking. Locks STX for reward cycles.
+
+```json
+{"amount_ustx": 100000000000, "pox_address": "bc1q...", "num_cycles": 6, "dry_run": true}
+```
+
+#### `stx_revoke_delegation`
+
+Revoke stacking delegation via the PoX contract.
+
+---
+
 ## Cursor MCP config example
 
 Add to `.cursor/mcp.json`:
@@ -663,5 +733,6 @@ Add to `.cursor/mcp.json`:
 
 ## Roadmap
 
-See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining phases
-covering Swaps/DeFi, sBTC Bridge, Stacking, and advanced ecosystem features.
+See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining Phase 5
+sub-phases covering transaction management, BNS, market data, hardware wallets,
+inscription creation, and fiat onramp.

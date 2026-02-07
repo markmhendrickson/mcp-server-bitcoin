@@ -83,95 +83,101 @@ are out of scope for this plan.
 
 ---
 
-### Phase 4: Swaps, DeFi & Bridge (Priority: MEDIUM)
-**Goal**: Swap, sBTC bridge, and stacking/yield functionality.
-**Estimated effort**: 3-4 weeks
+### Phase 4: Swaps, DeFi & Bridge -- COMPLETE (10 tools)
 
 #### 4.1 Swap Operations
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `swap_get_quote` | Get a swap quote (BTC, STX, SIP-10) | Leather swap services (Alex, Bitflow, Velar), Xverse swap module |
-| `swap_execute` | Execute a swap | Leather `openSwap`, swap providers |
-| `swap_get_supported_pairs` | List supported swap pairs and protocols | Derived from both ecosystems |
-| `swap_get_history` | Get swap transaction history | Activity/transaction history APIs |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `swap_get_supported_pairs` | List pools/pairs from Alex DEX | Done |
+| `swap_get_quote` | Get quote with estimated output, rate, fees | Done |
+| `swap_execute` | Execute swap via DEX contract call | Done |
+| `swap_get_history` | Get swap transaction history from on-chain activity | Done |
 
 #### 4.2 sBTC Bridge
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `sbtc_bridge_deposit` | Bridge BTC to sBTC (Stacks L2) | Leather `sbtc-bridge-swap-provider` |
-| `sbtc_bridge_withdraw` | Withdraw sBTC back to BTC | Leather sBTC bridge service |
-| `sbtc_get_balance` | Get sBTC balance | Derived from Stacks token balance |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `sbtc_get_balance` | Get sBTC token balance | Done |
+| `sbtc_bridge_deposit` | Get deposit info for BTC-to-sBTC bridge | Done |
+| `sbtc_bridge_withdraw` | Get withdrawal info for sBTC-to-BTC | Done |
 
 #### 4.3 Yield / Stacking
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `stx_get_stacking_info` | Get current stacking status and rewards | Xverse `stacking`, Leather yield service |
-| `stx_stack` | Initiate STX stacking (delegate or solo) | Xverse `transactions/stacks/stacking` |
-| `stx_revoke_delegation` | Revoke stacking delegation | Stacks stacking contract |
-
-**Tool count**: 10
+| Tool | Description | Status |
+|------|-------------|--------|
+| `stx_get_stacking_info` | PoX cycle info, thresholds, wallet stacking state | Done |
+| `stx_stack` | Initiate STX solo stacking via PoX contract | Done |
+| `stx_revoke_delegation` | Revoke stacking delegation | Done |
 
 ---
 
 ### Phase 5: Advanced Features & Ecosystem (Priority: LOWER)
 **Goal**: Full ecosystem parity including transaction management, wallet management,
 name systems, market data, hardware wallets, and inscription creation.
-**Estimated effort**: 4-5 weeks
+**Total tool count**: 25
 
-#### 5.1 Transaction Management
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `tx_get_history` | Get transaction history (BTC + STX) with filtering | Leather activity, Xverse transaction history |
-| `tx_get_status` | Get status of a specific transaction | mempool.space / Stacks API |
-| `tx_speed_up` | Speed up (RBF) a pending BTC transaction | Xverse `rbf.ts`, Leather speed-up feature |
-| `tx_cancel` | Cancel a pending transaction via RBF | Derived from RBF |
+#### Sub-phase 5A: Transaction Management & Wallet (8 tools)
+**Priority**: Medium -- Useful for power users managing pending transactions.
+**Effort**: 1-2 weeks
+**Dependencies**: Phase 1 (BTC), Phase 2 (STX)
 
-#### 5.2 Wallet Management
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `wallet_get_network` | Get current network configuration | Xverse `wallet_getNetwork`, Leather networks |
-| `wallet_switch_network` | Switch between mainnet/testnet/signet/regtest | Xverse `wallet_changeNetwork` |
-| `wallet_add_network` | Add a custom network | Xverse `wallet_addNetwork` |
-| `wallet_get_supported_methods` | List all available MCP tools | Leather `supportedMethods` |
+| MCP Tool | Description | Source | Complexity |
+|----------|-------------|--------|-----------|
+| `tx_get_history` | Get transaction history (BTC + STX) with filtering | Leather activity, Xverse history | Low -- REST API calls |
+| `tx_get_status` | Get status of a specific transaction (BTC or STX) | mempool.space / Stacks API | Low -- REST API calls |
+| `tx_speed_up` | Speed up (RBF) a pending BTC transaction | Xverse `rbf.ts` | High -- rebuild + resign tx |
+| `tx_cancel` | Cancel a pending BTC transaction via RBF | Derived from RBF | High -- same as speed_up |
+| `wallet_get_network` | Get current network configuration | Xverse `wallet_getNetwork` | Low -- read config |
+| `wallet_switch_network` | Switch between mainnet/testnet/signet/regtest | Xverse `wallet_changeNetwork` | Low -- write config |
+| `wallet_add_network` | Add a custom network configuration | Xverse `wallet_addNetwork` | Low -- write config |
+| `wallet_get_supported_methods` | List all available MCP tools with descriptions | Leather `supportedMethods` | Low -- introspect |
 
-#### 5.3 Name Systems
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `bns_lookup` | Look up a BNS name to resolve address | Leather `@leather.io/queries/bns` |
-| `bns_get_names` | Get BNS names owned by an address | Leather BNS queries |
-| `bns_register` | Register a BNS name | Stacks BNS contract |
+#### Sub-phase 5B: BNS & Market Data (8 tools)
+**Priority**: Medium -- Valuable for name resolution and portfolio tracking.
+**Effort**: 1-2 weeks
+**Dependencies**: Phase 2 (STX for BNS), Phase 1 (BTC for market data)
 
-#### 5.4 Market Data & Portfolio
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `market_get_prices` | Multi-asset price data (BTC, STX, tokens) | Leather market data service, CoinGecko |
-| `market_get_history` | Price history for charting | Leather `@leather.io/queries/market-history` |
-| `portfolio_get_summary` | Full portfolio summary (all assets, all chains) | Xverse `portfolio`, Leather `@leather.io/queries/balances` |
-| `portfolio_get_assets` | List all assets with current values | Leather `@leather.io/queries/assets` |
-| `portfolio_get_collectibles` | List all collectibles/NFTs | Leather `@leather.io/queries/collectibles` |
+| MCP Tool | Description | Source | Complexity |
+|----------|-------------|--------|-----------|
+| `bns_lookup` | Look up a BNS name to resolve STX/BTC address | Leather `@leather.io/queries/bns` | Low -- Hiro BNS API |
+| `bns_get_names` | Get BNS names owned by an address | Leather BNS queries | Low -- Hiro BNS API |
+| `bns_register` | Register a BNS name (contract call) | Stacks BNS contract | Medium -- contract call |
+| `market_get_prices` | Multi-asset prices (BTC, STX, tokens) | CoinGecko, Leather market data | Low -- REST API |
+| `market_get_history` | Price history for charting | Leather market-history queries | Low -- REST API |
+| `portfolio_get_summary` | Full portfolio summary (all assets, all chains) | Xverse portfolio, Leather balances | Medium -- aggregate |
+| `portfolio_get_assets` | List all assets with current values | Leather assets queries | Medium -- aggregate |
+| `portfolio_get_collectibles` | List all collectibles/NFTs across chains | Leather collectibles queries | Medium -- aggregate |
 
-#### 5.5 Hardware Wallet Support
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `ledger_get_addresses` | Get addresses from Ledger device | Xverse `ledger`, Leather Ledger feature |
-| `ledger_sign_psbt` | Sign PSBT via Ledger | Xverse `ledger/btc.ts` |
-| `ledger_sign_stx_transaction` | Sign STX transaction via Ledger | Xverse `ledger/stx.ts` |
-| `keystone_get_addresses` | Get addresses from Keystone device | Xverse `keystone` |
-| `keystone_sign_psbt` | Sign PSBT via Keystone | Xverse `keystone/btc.ts` |
+#### Sub-phase 5C: Hardware Wallets (5 tools)
+**Priority**: Lower -- Requires physical device access; useful for custody.
+**Effort**: 2-3 weeks
+**Dependencies**: Phase 1 (BTC PSBT), Phase 2 (STX signing)
+**Special requirements**: `ledgercomm` or `ledgerwallet` Python library, USB access
 
-#### 5.6 Inscription Creation
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `ord_create_inscription` | Create a new inscription | Xverse `createInscription`, inscription mint |
-| `ord_create_repeat_inscriptions` | Create multiple inscriptions | Xverse `createRepeatInscriptions` |
+| MCP Tool | Description | Source | Complexity |
+|----------|-------------|--------|-----------|
+| `ledger_get_addresses` | Get addresses from Ledger device | Xverse `ledger`, Leather Ledger | High -- USB HID |
+| `ledger_sign_psbt` | Sign PSBT via Ledger | Xverse `ledger/btc.ts` | High -- device protocol |
+| `ledger_sign_stx_transaction` | Sign STX transaction via Ledger | Xverse `ledger/stx.ts` | High -- device protocol |
+| `keystone_get_addresses` | Get addresses from Keystone (QR-based) | Xverse `keystone` | Medium -- QR encode/decode |
+| `keystone_sign_psbt` | Sign PSBT via Keystone | Xverse `keystone/btc.ts` | Medium -- QR encode/decode |
 
-#### 5.7 Buy/Onramp
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `buy_get_providers` | List available onramp providers | Xverse `onramper`, Leather fund page |
-| `buy_get_quote` | Get a buy quote | Onramper API |
+#### Sub-phase 5D: Inscription Creation & Onramp (4 tools)
+**Priority**: Lower -- Niche features for creators and new users.
+**Effort**: 1-2 weeks
+**Dependencies**: Phase 1 (BTC transactions), Phase 3 (Ordinals)
 
-**Tool count**: 25
+| MCP Tool | Description | Source | Complexity |
+|----------|-------------|--------|-----------|
+| `ord_create_inscription` | Create a new inscription (text, image, etc.) | Xverse `createInscription` | High -- commit/reveal tx |
+| `ord_create_repeat_inscriptions` | Create multiple inscriptions in batch | Xverse `createRepeatInscriptions` | High -- batch commit/reveal |
+| `buy_get_providers` | List available fiat onramp providers | Xverse `onramper`, Leather fund | Low -- REST API |
+| `buy_get_quote` | Get a fiat-to-crypto buy quote | Onramper API | Low -- REST API |
+
+#### Recommended Sub-phase Execution Order
+
+1. **5A** (Tx Management & Wallet) -- foundational, unblocks user workflows
+2. **5B** (BNS & Market Data) -- high user value, straightforward APIs
+3. **5D** (Inscriptions & Onramp) -- smaller scope, completes ordinals story
+4. **5C** (Hardware Wallets) -- most complex, requires device access
 
 ---
 
@@ -223,13 +229,16 @@ stx_wallet.py                     # STX wallet operations
 
 ## Priority Matrix
 
-| Phase | Priority | Business Value | Technical Complexity | Dependencies |
-|-------|----------|---------------|---------------------|--------------|
-| 1 | CRITICAL | High -- Core BTC operations used by all users | Medium | None |
-| 2 | HIGH | High -- Stacks is core to both ecosystems | Medium-High | Phase 1 |
-| 3 | HIGH | High -- Ordinals/inscriptions are key Bitcoin NFT use case | Medium | Phase 1 |
-| 4 | MEDIUM | Medium-High -- DeFi/swap is key user workflow | High | Phase 1, 2 |
-| 5 | LOWER | Medium -- Advanced features for power users | High | Phase 1-4 |
+| Phase | Priority | Business Value | Technical Complexity | Dependencies | Status |
+|-------|----------|---------------|---------------------|--------------|--------|
+| 1 | CRITICAL | High -- Core BTC operations | Medium | None | **DONE** |
+| 2 | HIGH | High -- Stacks core | Medium-High | Phase 1 | **DONE** |
+| 3 | HIGH | High -- Ordinals/inscriptions | Medium | Phase 1 | **DONE** |
+| 4 | MEDIUM | Medium-High -- DeFi/swaps | High | Phase 1, 2 | **DONE** |
+| 5A | MEDIUM | Medium -- Tx mgmt & wallet | Low-Medium | Phase 1-2 | Planned |
+| 5B | MEDIUM | Medium -- Names & market data | Low-Medium | Phase 1-2 | Planned |
+| 5C | LOWER | Lower -- Hardware wallets | High | Phase 1-2 | Planned |
+| 5D | LOWER | Lower -- Inscriptions & onramp | Medium-High | Phase 1, 3 | Planned |
 
 ---
 
@@ -240,9 +249,12 @@ stx_wallet.py                     # STX wallet operations
 | 1 | Core Bitcoin | 19 | **DONE** |
 | 2 | Stacks (STX) | 18 | **DONE** |
 | 3 | Ordinals & Inscriptions | 7 | **DONE** |
-| 4 | Swaps, DeFi, Bridge, Stacking | 10 | Planned |
-| 5 | Advanced & Ecosystem | 25 | Planned |
-| **Total** | | **79** | **44 done** |
+| 4 | Swaps, DeFi, Bridge, Stacking | 10 | **DONE** |
+| 5A | Tx Management & Wallet | 8 | Planned |
+| 5B | BNS & Market Data | 8 | Planned |
+| 5C | Hardware Wallets | 5 | Planned |
+| 5D | Inscription Creation & Onramp | 4 | Planned |
+| **Total** | | **79** | **54 done** |
 
 ---
 
@@ -263,9 +275,9 @@ stx_wallet.py                     # STX wallet operations
 | Stacks Contracts (call + deploy) | **Yes** | Yes | Yes | 2 |
 | Stacks Message Signing | **Yes** | Yes | Yes | 2 |
 | Ordinals/Inscriptions | **Yes** | Yes (view) | Yes (view + send + split) | 3 |
-| Swaps | No | Yes (Alex, Bitflow, Velar) | Yes (multi-protocol) | 4 |
-| sBTC Bridge | No | Yes | No | 4 |
-| Stacking/Yield | No | Yes | Yes | 4 |
+| Swaps | **Yes** | Yes (Alex, Bitflow, Velar) | Yes (multi-protocol) | 4 |
+| sBTC Bridge | **Yes** | Yes | No | 4 |
+| Stacking/Yield | **Yes** | Yes | Yes | 4 |
 | RBF/Speed-up | No | No | Yes | 5 |
 | Hardware Wallets | No | Yes (Ledger) | Yes (Ledger + Keystone) | 5 |
 | BNS Names | No | Yes | No | 5 |

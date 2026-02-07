@@ -77,9 +77,9 @@ def test_ord_tools_in_tool_list():
 
 
 def test_total_tool_count():
-    """Phase 1 (19) + Phase 2 (18) + Phase 3 (7) = 44 tools."""
+    """All phases = 54 tools."""
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 44
+    assert len(tools) == 54
 
 
 # ---------------------------------------------------------------------------
