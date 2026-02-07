@@ -6,11 +6,14 @@ Phase 1: Core Bitcoin Enhancement -- 19 tools covering addresses, accounts,
 sending (multi-recipient, sweep, consolidate), PSBT, message signing,
 fee management, and UTXO management.
 
-Phase 2: Stacks (STX) Support -- 17 tools covering STX addresses, balances,
+Phase 2: Stacks (STX) Support -- 18 tools covering STX addresses, balances,
 transfers (STX, SIP-10 FT, SIP-9 NFT), contract calls/deploys, read-only
 contract queries, transaction signing, message signing, and utilities.
 
-Wraps btc_wallet.py and stx_wallet.py as MCP tools.
+Phase 3: Ordinals & Inscriptions -- 7 tools covering inscription queries,
+sending (full UTXO and split), extraction, and recovery operations.
+
+Wraps btc_wallet.py, stx_wallet.py, and ord_wallet.py as MCP tools.
 """
 
 from __future__ import annotations
@@ -52,6 +55,16 @@ from btc_wallet import (
     sign_message,
     sign_psbt,
     verify_message,
+)
+
+from ord_wallet import (
+    ord_extract_from_utxo,
+    ord_get_inscription_details,
+    ord_get_inscriptions,
+    ord_recover_bitcoin,
+    ord_recover_ordinals,
+    ord_send_inscriptions,
+    ord_send_inscriptions_split,
 )
 
 from stx_wallet import (
@@ -770,6 +783,157 @@ async def list_tools() -> List[Tool]:
                 "required": ["person"],
             },
         ),
+        # ===================================================================
+        # Phase 3: Ordinals & Inscriptions
+        # ===================================================================
+        Tool(
+            name="ord_get_inscriptions",
+            description=(
+                "List inscriptions owned by the wallet (or a specific address) "
+                "with pagination. Returns inscription IDs, content types, "
+                "locations, and sat rarity."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "limit": {"type": "integer", "description": "Page size, max 60 (default: 20)"},
+                    "address": {
+                        "type": "string",
+                        "description": "Address to query (default: wallet's taproot address)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="ord_get_inscription_details",
+            description=(
+                "Get detailed information for a specific inscription by ID, "
+                "including genesis info, content type, sat ordinal, rarity, "
+                "current location, and value."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "inscription_id": {
+                        "type": "string",
+                        "description": "Inscription ID (e.g. 'txid...i0')",
+                    },
+                },
+                "required": ["inscription_id"],
+            },
+        ),
+        Tool(
+            name="ord_send_inscriptions",
+            description=(
+                "Send inscriptions to recipients. Transfers the full UTXO "
+                "containing each inscription. Uses a separate payment UTXO for fees."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transfers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "address": {"type": "string", "description": "Recipient BTC address"},
+                                "inscriptionId": {"type": "string", "description": "Inscription ID"},
+                            },
+                            "required": ["address", "inscriptionId"],
+                        },
+                        "description": "List of inscription transfers",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["transfers"],
+            },
+        ),
+        Tool(
+            name="ord_send_inscriptions_split",
+            description=(
+                "Send inscriptions with UTXO splitting. When an inscription "
+                "sits in a large UTXO, splits it so only the inscription's "
+                "sat range goes to the recipient and the remainder returns."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "transfers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "address": {"type": "string", "description": "Recipient BTC address"},
+                                "inscriptionId": {"type": "string", "description": "Inscription ID"},
+                            },
+                            "required": ["address", "inscriptionId"],
+                        },
+                        "description": "List of inscription transfers",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["transfers"],
+            },
+        ),
+        Tool(
+            name="ord_extract_from_utxo",
+            description=(
+                "Extract ordinals/inscriptions from a mixed UTXO into "
+                "individual outputs at the ordinals address."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "outpoint": {
+                        "type": "string",
+                        "description": "UTXO outpoint in 'txid:vout' format",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+                "required": ["outpoint"],
+            },
+        ),
+        Tool(
+            name="ord_recover_bitcoin",
+            description=(
+                "Recover BTC trapped in the ordinals (taproot) address. "
+                "Finds UTXOs without inscriptions and sweeps them to "
+                "the payment address."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "outpoint": {
+                        "type": "string",
+                        "description": "Optional: recover a specific UTXO ('txid:vout')",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+            },
+        ),
+        Tool(
+            name="ord_recover_ordinals",
+            description=(
+                "Recover ordinals/inscriptions that ended up on the payment "
+                "address. Moves inscription-bearing UTXOs to the ordinals address."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "outpoint": {
+                        "type": "string",
+                        "description": "Optional: recover from a specific UTXO ('txid:vout')",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                },
+            },
+        ),
     ]
 
 
@@ -887,6 +1051,24 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_stx_estimate_fee()
         if name == "stx_update_profile":
             return await _handle_stx_update_profile(arguments)
+
+        # =================================================================
+        # Phase 3: Ordinals & Inscriptions
+        # =================================================================
+        if name == "ord_get_inscriptions":
+            return await _handle_ord_get_inscriptions(arguments)
+        if name == "ord_get_inscription_details":
+            return await _handle_ord_get_inscription_details(arguments)
+        if name == "ord_send_inscriptions":
+            return await _handle_ord_send_inscriptions(arguments)
+        if name == "ord_send_inscriptions_split":
+            return await _handle_ord_send_inscriptions_split(arguments)
+        if name == "ord_extract_from_utxo":
+            return await _handle_ord_extract_from_utxo(arguments)
+        if name == "ord_recover_bitcoin":
+            return await _handle_ord_recover_bitcoin(arguments)
+        if name == "ord_recover_ordinals":
+            return await _handle_ord_recover_ordinals(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -1493,6 +1675,80 @@ async def _handle_stx_update_profile(arguments: dict[str, Any]) -> List[TextCont
         stx_update_profile, cfg, person,
         arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
     )
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 3 Handlers -- Ordinals & Inscriptions
+# ===========================================================================
+
+
+async def _handle_ord_get_inscriptions(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    offset = arguments.get("offset", 0)
+    limit = arguments.get("limit", 20)
+    address = (arguments.get("address") or "").strip() or None
+    result = await asyncio.to_thread(ord_get_inscriptions, cfg, offset, limit, address)
+    return _ok_response(result)
+
+
+async def _handle_ord_get_inscription_details(arguments: dict[str, Any]) -> List[TextContent]:
+    inscription_id = (arguments.get("inscription_id") or "").strip()
+    if not inscription_id:
+        return _error_response("Missing 'inscription_id' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(ord_get_inscription_details, cfg, inscription_id)
+    return _ok_response(result)
+
+
+async def _handle_ord_send_inscriptions(arguments: dict[str, Any]) -> List[TextContent]:
+    transfers = arguments.get("transfers")
+    if not transfers or not isinstance(transfers, list):
+        return _error_response("Missing or invalid 'transfers' array.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    fee_rate = arguments.get("fee_rate")
+    dry_run = arguments.get("dry_run")
+    result = await asyncio.to_thread(ord_send_inscriptions, cfg, transfers, fee_rate, dry_run)
+    return _ok_response(result)
+
+
+async def _handle_ord_send_inscriptions_split(arguments: dict[str, Any]) -> List[TextContent]:
+    transfers = arguments.get("transfers")
+    if not transfers or not isinstance(transfers, list):
+        return _error_response("Missing or invalid 'transfers' array.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    fee_rate = arguments.get("fee_rate")
+    dry_run = arguments.get("dry_run")
+    result = await asyncio.to_thread(ord_send_inscriptions_split, cfg, transfers, fee_rate, dry_run)
+    return _ok_response(result)
+
+
+async def _handle_ord_extract_from_utxo(arguments: dict[str, Any]) -> List[TextContent]:
+    outpoint = (arguments.get("outpoint") or "").strip()
+    if not outpoint:
+        return _error_response("Missing 'outpoint' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    fee_rate = arguments.get("fee_rate")
+    dry_run = arguments.get("dry_run")
+    result = await asyncio.to_thread(ord_extract_from_utxo, cfg, outpoint, fee_rate, dry_run)
+    return _ok_response(result)
+
+
+async def _handle_ord_recover_bitcoin(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    outpoint = (arguments.get("outpoint") or "").strip() or None
+    fee_rate = arguments.get("fee_rate")
+    dry_run = arguments.get("dry_run")
+    result = await asyncio.to_thread(ord_recover_bitcoin, cfg, outpoint, fee_rate, dry_run)
+    return _ok_response(result)
+
+
+async def _handle_ord_recover_ordinals(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    outpoint = (arguments.get("outpoint") or "").strip() or None
+    fee_rate = arguments.get("fee_rate")
+    dry_run = arguments.get("dry_run")
+    result = await asyncio.to_thread(ord_recover_ordinals, cfg, outpoint, fee_rate, dry_run)
     return _ok_response(result)
 
 

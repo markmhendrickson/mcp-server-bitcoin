@@ -69,21 +69,17 @@ are out of scope for this plan.
 
 ## Remaining Phases
 
-### Phase 3: Ordinals & Inscriptions (Priority: HIGH)
-**Goal**: Support for Bitcoin Ordinals inscriptions -- viewing, sending, and splitting.
-**Estimated effort**: 2-3 weeks
+### Phase 3: Ordinals & Inscriptions -- COMPLETE (7 tools)
 
-| MCP Tool | Description | Source |
-|----------|-------------|--------|
-| `ord_get_inscriptions` | List inscriptions with pagination (ID, number, content type, address) | Xverse `ord_getInscriptions`, Leather collectibles |
-| `ord_get_inscription_details` | Get detailed info for a specific inscription | Ordinals API |
-| `ord_send_inscriptions` | Send inscriptions to recipient(s) | Xverse `ord_sendInscriptions`, `sendOrdinals` |
-| `ord_send_inscriptions_split` | Send inscriptions with UTXO splitting (preserve sat ranges) | Xverse `sendOrdinalsWithSplit` |
-| `ord_extract_from_utxo` | Extract ordinals from a mixed UTXO | Xverse `extractOrdinalsFromUtxo` |
-| `ord_recover_bitcoin` | Recover BTC trapped in ordinals address | Xverse `recoverBitcoin` |
-| `ord_recover_ordinals` | Recover ordinals from payment address | Xverse `recoverOrdinal` |
-
-**Tool count**: 7
+| Tool | Description | Status |
+|------|-------------|--------|
+| `ord_get_inscriptions` | List inscriptions with pagination via Hiro Ordinals API | Done |
+| `ord_get_inscription_details` | Detailed inscription info (genesis, content, rarity, location) | Done |
+| `ord_send_inscriptions` | Send inscriptions (full UTXO transfer with fee funding) | Done |
+| `ord_send_inscriptions_split` | Send inscriptions with UTXO splitting (preserve sat ranges) | Done |
+| `ord_extract_from_utxo` | Extract ordinals from mixed UTXO into individual outputs | Done |
+| `ord_recover_bitcoin` | Recover BTC from ordinals address (non-inscription UTXOs) | Done |
+| `ord_recover_ordinals` | Recover ordinals from payment address to taproot address | Done |
 
 ---
 
@@ -243,10 +239,10 @@ stx_wallet.py                     # STX wallet operations
 |-------|----------|------------|--------|
 | 1 | Core Bitcoin | 19 | **DONE** |
 | 2 | Stacks (STX) | 18 | **DONE** |
-| 3 | Ordinals & Inscriptions | 7 | Planned |
+| 3 | Ordinals & Inscriptions | 7 | **DONE** |
 | 4 | Swaps, DeFi, Bridge, Stacking | 10 | Planned |
 | 5 | Advanced & Ecosystem | 25 | Planned |
-| **Total** | | **79** | **37 done** |
+| **Total** | | **79** | **44 done** |
 
 ---
 
@@ -266,7 +262,7 @@ stx_wallet.py                     # STX wallet operations
 | STX Token Transfer (SIP-10, SIP-9) | **Yes** | Yes | Yes | 2 |
 | Stacks Contracts (call + deploy) | **Yes** | Yes | Yes | 2 |
 | Stacks Message Signing | **Yes** | Yes | Yes | 2 |
-| Ordinals/Inscriptions | No | Yes (view) | Yes (view + send + split) | 3 |
+| Ordinals/Inscriptions | **Yes** | Yes (view) | Yes (view + send + split) | 3 |
 | Swaps | No | Yes (Alex, Bitflow, Velar) | Yes (multi-protocol) | 4 |
 | sBTC Bridge | No | Yes | No | 4 |
 | Stacking/Yield | No | Yes | Yes | 4 |

@@ -557,6 +557,96 @@ Update an on-chain profile (schema.org/Person). Requires a registered BNS name.
 
 ---
 
+---
+
+## Phase 3: Ordinals & Inscriptions Tools
+
+Ordinals tools use the Hiro Ordinals API for inscription discovery and the
+wallet's taproot (P2TR) address for ordinals storage. Inscription transfers
+use the P2WPKH payment address for fee funding.
+
+### Inscription Queries
+
+#### `ord_get_inscriptions`
+
+List inscriptions owned by the wallet with pagination.
+
+```json
+{"offset": 0, "limit": 20}
+```
+
+Returns inscription IDs, content types, sat rarity, locations, and values.
+
+#### `ord_get_inscription_details`
+
+Get detailed info for a specific inscription including genesis data, content
+type, sat ordinal, rarity, and current UTXO location.
+
+```json
+{"inscription_id": "abc123...i0"}
+```
+
+### Sending Inscriptions
+
+#### `ord_send_inscriptions`
+
+Send inscriptions to recipients. Transfers the full UTXO containing each
+inscription, using a separate payment UTXO for fees.
+
+```json
+{
+  "transfers": [
+    {"address": "bc1p...", "inscriptionId": "abc123...i0"}
+  ],
+  "dry_run": true
+}
+```
+
+#### `ord_send_inscriptions_split`
+
+Send inscriptions with UTXO splitting. When an inscription sits in a large
+UTXO at a specific offset, splits it so only the inscription's sat range
+goes to the recipient and the remainder returns to the sender.
+
+```json
+{
+  "transfers": [
+    {"address": "bc1p...", "inscriptionId": "abc123...i0"}
+  ],
+  "dry_run": true
+}
+```
+
+### Extract & Recover
+
+#### `ord_extract_from_utxo`
+
+Extract ordinals from a mixed UTXO into individual outputs.
+
+```json
+{"outpoint": "txid:vout", "dry_run": true}
+```
+
+#### `ord_recover_bitcoin`
+
+Recover BTC trapped in the ordinals (taproot) address. Finds UTXOs without
+inscriptions and sweeps them to the payment address.
+
+```json
+{"dry_run": true}
+```
+
+#### `ord_recover_ordinals`
+
+Recover ordinals that ended up on the payment address. Moves
+inscription-bearing UTXOs to the ordinals (taproot) address.
+
+```json
+{"dry_run": true}
+```
+
+---
+
 ## Cursor MCP config example
 
 Add to `.cursor/mcp.json`:
@@ -573,5 +663,5 @@ Add to `.cursor/mcp.json`:
 
 ## Roadmap
 
-See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the full 6-phase
-roadmap covering Ordinals, Runes, Swaps, Spark/Lightning, and more.
+See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining phases
+covering Swaps/DeFi, sBTC Bridge, Stacking, and advanced ecosystem features.
