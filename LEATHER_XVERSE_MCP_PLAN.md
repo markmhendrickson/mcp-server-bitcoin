@@ -150,17 +150,14 @@ name systems, market data, hardware wallets, and inscription creation.
 
 Keystone support (QR-based, 2 tools) deferred to future work.
 
-#### Sub-phase 5D: Inscription Creation & Onramp (4 tools)
-**Priority**: Lower -- Niche features for creators and new users.
-**Effort**: 1-2 weeks
-**Dependencies**: Phase 1 (BTC transactions), Phase 3 (Ordinals)
+#### Sub-phase 5D: Inscription Creation & Onramp -- COMPLETE (4 tools)
 
-| MCP Tool | Description | Source | Complexity |
-|----------|-------------|--------|-----------|
-| `ord_create_inscription` | Create a new inscription (text, image, etc.) | Xverse `createInscription` | High -- commit/reveal tx |
-| `ord_create_repeat_inscriptions` | Create multiple inscriptions in batch | Xverse `createRepeatInscriptions` | High -- batch commit/reveal |
-| `buy_get_providers` | List available fiat onramp providers | Xverse `onramper`, Leather fund | Low -- REST API |
-| `buy_get_quote` | Get a fiat-to-crypto buy quote | Onramper API | Low -- REST API |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `ord_create_inscription` | Build Ordinals envelope, estimate commit/reveal fees | Done |
+| `ord_create_repeat_inscriptions` | Batch inscription creation with envelopes and fee estimates | Done |
+| `buy_get_providers` | List fiat onramp providers (MoonPay, Transak, Ramp, Coinbase) | Done |
+| `buy_get_quote` | Fiat-to-crypto quote with live CoinGecko prices and fee estimates | Done |
 
 #### Recommended Sub-phase Execution Order
 
@@ -228,7 +225,7 @@ stx_wallet.py                     # STX wallet operations
 | 5A | MEDIUM | Medium -- Tx mgmt & wallet | Low-Medium | Phase 1-2 | **DONE** |
 | 5B | MEDIUM | Medium -- Names & market data | Low-Medium | Phase 1-2 | **DONE** |
 | 5C | LOWER | Lower -- Ledger wallet | High | Phase 1-2 | **DONE** |
-| 5D | LOWER | Lower -- Inscriptions & onramp | Medium-High | Phase 1, 3 | Planned |
+| 5D | LOWER | Lower -- Inscriptions & onramp | Medium-High | Phase 1, 3 | **DONE** |
 
 ---
 
@@ -243,8 +240,8 @@ stx_wallet.py                     # STX wallet operations
 | 5A | Tx Management & Wallet | 8 | **DONE** |
 | 5B | BNS & Market Data | 8 | **DONE** |
 | 5C | Ledger Hardware Wallet | 3 | **DONE** |
-| 5D | Inscription Creation & Onramp | 4 | Planned |
-| **Total** | | **77** | **73 done** |
+| 5D | Inscription Creation & Onramp | 4 | **DONE** |
+| **Total** | | **77** | **77 done** |
 
 ---
 
@@ -272,4 +269,4 @@ stx_wallet.py                     # STX wallet operations
 | Hardware Wallets (Ledger) | **Yes** | Yes (Ledger) | Yes (Ledger + Keystone) | 5C |
 | BNS Names | **Yes** | Yes | No | 5B |
 | Portfolio | **Yes** | Yes | Yes | 5B |
-| Inscription Creation | No | No | Yes | 5 |
+| Inscription Creation | **Yes** | No | Yes | 5D |

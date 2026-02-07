@@ -105,10 +105,10 @@ def test_list_tools_count():
     sbtc_count = sum(1 for t in tools if t.name.startswith("sbtc_"))
     assert btc_count == 19
     assert stx_count == 21  # 18 original + 3 stacking
-    assert ord_count == 7
+    assert ord_count == 9  # 7 Phase 3 + 2 Phase 5D inscription creation
     assert swap_count == 4
     assert sbtc_count == 3
-    assert len(tools) == 73
+    assert len(tools) == 77
 
 
 def test_get_addresses_returns_all_types(monkeypatch):

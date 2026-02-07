@@ -804,6 +804,49 @@ Sign a Stacks transaction using the Ledger Stacks app.
 
 ---
 
+## Phase 5D: Inscription Creation & Onramp Tools
+
+#### `ord_create_inscription`
+
+Create a new Bitcoin inscription. Builds the Ordinals envelope with content type
+and data, estimates commit/reveal fees.
+
+```json
+{"content_type": "text/plain", "content": "Hello Ordinals!", "dry_run": true}
+```
+
+Also supports binary content (hex-encoded images, etc.):
+
+```json
+{"content_type": "image/png", "content": "89504e47...", "content_encoding": "hex", "dry_run": true}
+```
+
+#### `ord_create_repeat_inscriptions`
+
+Create multiple inscriptions in batch with shared fee estimation.
+
+```json
+{"content_type": "text/plain", "contents": ["one", "two", "three"], "dry_run": true}
+```
+
+#### `buy_get_providers`
+
+List available fiat-to-crypto onramp providers with supported currencies.
+
+```json
+{"crypto": "BTC", "fiat": "USD"}
+```
+
+#### `buy_get_quote`
+
+Get a fiat-to-crypto buy quote with live prices and estimated fees.
+
+```json
+{"crypto": "BTC", "fiat": "USD", "fiat_amount": 100}
+```
+
+---
+
 ## Cursor MCP config example
 
 Add to `.cursor/mcp.json`:
@@ -820,5 +863,6 @@ Add to `.cursor/mcp.json`:
 
 ## Roadmap
 
-See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining Phase 5D
-(inscription creation, fiat onramp -- 4 tools).
+All 77 planned MCP tools are now implemented. See
+[LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the full roadmap and
+feature mapping.

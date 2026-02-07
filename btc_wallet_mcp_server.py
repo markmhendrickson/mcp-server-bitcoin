@@ -57,6 +57,13 @@ from btc_wallet import (
     verify_message,
 )
 
+from inscribe_onramp_wallet import (
+    buy_get_providers,
+    buy_get_quote,
+    ord_create_inscription,
+    ord_create_repeat_inscriptions,
+)
+
 from ledger_wallet import (
     ledger_get_addresses,
     ledger_sign_psbt,
@@ -1380,6 +1387,98 @@ async def list_tools() -> List[Tool]:
                 "required": ["tx_hex"],
             },
         ),
+        # ===================================================================
+        # Phase 5D: Inscription Creation & Onramp
+        # ===================================================================
+        Tool(
+            name="ord_create_inscription",
+            description=(
+                "Create a new Bitcoin inscription. Builds the Ordinals envelope "
+                "with content type and data, estimates commit/reveal fees. "
+                "Supports text, JSON, images (hex-encoded), and any MIME type."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content_type": {
+                        "type": "string",
+                        "description": "MIME type: text/plain, image/png, application/json, etc.",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Inscription content (text or hex for binary)",
+                    },
+                    "content_encoding": {
+                        "type": "string",
+                        "enum": ["utf-8", "hex"],
+                        "description": "Content encoding: utf-8 for text, hex for binary (default: utf-8)",
+                    },
+                    "recipient": {
+                        "type": "string",
+                        "description": "Address to receive inscription (default: wallet taproot)",
+                    },
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, estimate only"},
+                },
+                "required": ["content_type", "content"],
+            },
+        ),
+        Tool(
+            name="ord_create_repeat_inscriptions",
+            description=(
+                "Create multiple inscriptions in batch. Each content item becomes "
+                "a separate inscription. Returns envelopes and total fee estimates."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "content_type": {
+                        "type": "string",
+                        "description": "MIME type for all inscriptions",
+                    },
+                    "contents": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of content items (text or hex)",
+                    },
+                    "content_encoding": {
+                        "type": "string",
+                        "enum": ["utf-8", "hex"],
+                        "description": "Content encoding (default: utf-8)",
+                    },
+                    "recipient": {"type": "string", "description": "Recipient address"},
+                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
+                    "dry_run": {"type": "boolean", "description": "If true, estimate only"},
+                },
+                "required": ["content_type", "contents"],
+            },
+        ),
+        Tool(
+            name="buy_get_providers",
+            description="List available fiat-to-crypto onramp providers with supported currencies.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crypto": {"type": "string", "description": "Filter by crypto (BTC, STX, ETH)"},
+                    "fiat": {"type": "string", "description": "Filter by fiat (USD, EUR, GBP)"},
+                },
+            },
+        ),
+        Tool(
+            name="buy_get_quote",
+            description=(
+                "Get a fiat-to-crypto buy quote with estimated amount and fees. "
+                "Uses live market prices from CoinGecko."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "crypto": {"type": "string", "description": "Cryptocurrency: BTC, STX, ETH (default: BTC)"},
+                    "fiat": {"type": "string", "description": "Fiat currency: USD, EUR (default: USD)"},
+                    "fiat_amount": {"type": "number", "description": "Fiat amount to spend (default: 100)"},
+                },
+            },
+        ),
     ]
 
 
@@ -1589,6 +1688,18 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_ledger_sign_psbt(arguments)
         if name == "ledger_sign_stx_transaction":
             return await _handle_ledger_sign_stx_transaction(arguments)
+
+        # =================================================================
+        # Phase 5D: Inscription Creation & Onramp
+        # =================================================================
+        if name == "ord_create_inscription":
+            return await _handle_ord_create_inscription(arguments)
+        if name == "ord_create_repeat_inscriptions":
+            return await _handle_ord_create_repeat_inscriptions(arguments)
+        if name == "buy_get_providers":
+            return await _handle_buy_get_providers(arguments)
+        if name == "buy_get_quote":
+            return await _handle_buy_get_quote(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -2567,6 +2678,66 @@ async def _handle_ledger_sign_stx_transaction(arguments: dict[str, Any]) -> List
     result = await asyncio.to_thread(
         ledger_sign_stx_transaction, tx_hex, derivation_path, interface
     )
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 5D Handlers -- Inscription Creation & Onramp
+# ===========================================================================
+
+
+async def _handle_ord_create_inscription(arguments: dict[str, Any]) -> List[TextContent]:
+    content_type = (arguments.get("content_type") or "").strip()
+    content = arguments.get("content", "")
+    if not content_type:
+        return _error_response("Missing 'content_type' parameter.")
+    if not content:
+        return _error_response("Missing 'content' parameter.")
+
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        ord_create_inscription, cfg,
+        content_type, content,
+        arguments.get("content_encoding", "utf-8"),
+        (arguments.get("recipient") or "").strip() or None,
+        arguments.get("fee_rate"),
+        arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_ord_create_repeat_inscriptions(arguments: dict[str, Any]) -> List[TextContent]:
+    content_type = (arguments.get("content_type") or "").strip()
+    contents = arguments.get("contents")
+    if not content_type:
+        return _error_response("Missing 'content_type' parameter.")
+    if not contents or not isinstance(contents, list):
+        return _error_response("Missing or invalid 'contents' array.")
+
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        ord_create_repeat_inscriptions, cfg,
+        content_type, contents,
+        arguments.get("content_encoding", "utf-8"),
+        (arguments.get("recipient") or "").strip() or None,
+        arguments.get("fee_rate"),
+        arguments.get("dry_run"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_buy_get_providers(arguments: dict[str, Any]) -> List[TextContent]:
+    crypto = (arguments.get("crypto") or "").strip() or None
+    fiat = (arguments.get("fiat") or "").strip() or None
+    result = await asyncio.to_thread(buy_get_providers, crypto, fiat)
+    return _ok_response(result)
+
+
+async def _handle_buy_get_quote(arguments: dict[str, Any]) -> List[TextContent]:
+    crypto = arguments.get("crypto", "BTC")
+    fiat = arguments.get("fiat", "USD")
+    fiat_amount = arguments.get("fiat_amount", 100.0)
+    result = await asyncio.to_thread(buy_get_quote, crypto, fiat, float(fiat_amount))
     return _ok_response(result)
 
 
