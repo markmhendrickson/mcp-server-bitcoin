@@ -1,21 +1,86 @@
 # BTC wallet MCP server
 
 This standalone MCP server wraps `btc_wallet.py` and exposes safe wallet
-operations as tools.
+operations as tools. **Phase 1** provides 19 tools covering addresses, accounts,
+transfers (including multi-recipient and sweep), PSBT operations, message
+signing, fee management, and UTXO management.
 
 ## Tools
 
-### `btc_wallet_get_balance`
+### Address & Account Management
 
-Returns the current wallet balance in BTC.
+#### `btc_get_addresses`
 
-Example request:
-
-```json
-{}
-```
+Return all derived wallet addresses (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR)
+with public keys and derivation paths.
 
 Example response:
+
+```json
+{
+  "success": true,
+  "addresses": [
+    {
+      "symbol": "BTC",
+      "type": "p2wpkh",
+      "address": "bc1q...",
+      "publicKey": "02abc...",
+      "derivationPath": "m/84'/0'/0'/0/0",
+      "label": "bip84_p2wpkh_0"
+    }
+  ],
+  "network": "mainnet"
+}
+```
+
+#### `btc_get_accounts`
+
+List accounts with balances across all address types. Queries mempool.space
+for live UTXO data.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "accounts": [
+    {
+      "type": "p2wpkh",
+      "address": "bc1q...",
+      "balance_sats": 123456,
+      "balance_btc": "0.00123456",
+      "utxo_count": 3,
+      "label": "bip84_p2wpkh_0"
+    }
+  ],
+  "total_balance_sats": 123456,
+  "total_balance_btc": "0.00123456",
+  "network": "mainnet"
+}
+```
+
+#### `btc_get_info`
+
+Return wallet version, network, supported tools, and configuration.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "version": "0.2.0",
+  "network": "testnet",
+  "dry_run_default": true,
+  "fee_tier": "hourFee",
+  "supported_tools": ["btc_get_addresses", "btc_send_transfer", "..."]
+}
+```
+
+### Balance & Prices
+
+#### `btc_wallet_get_balance`
+
+Returns the current wallet balance in BTC.
 
 ```json
 {
@@ -25,11 +90,9 @@ Example response:
 }
 ```
 
-### `btc_wallet_get_prices`
+#### `btc_wallet_get_prices`
 
 Returns current BTC prices in USD and EUR.
-
-Example response:
 
 ```json
 {
@@ -39,7 +102,9 @@ Example response:
 }
 ```
 
-### `btc_wallet_preview_transfer`
+### Transfers
+
+#### `btc_wallet_preview_transfer`
 
 Previews a transfer and returns estimated fees. Provide either `amount_btc` or
 `amount_eur`.
@@ -53,34 +118,24 @@ Example request:
 }
 ```
 
-Example response:
+#### `btc_wallet_send_transfer`
 
-```json
-{
-  "success": true,
-  "from_address": "bc1q...",
-  "to_address": "bc1q...",
-  "amount_btc": "0.00059523",
-  "fee_sats_estimate": 1140,
-  "total_spend_btc": "0.00060663",
-  "balance_btc": "0.02345678",
-  "network": "mainnet"
-}
-```
+Sends a BTC transfer (single recipient). Requires explicit user confirmation.
+Call `btc_wallet_preview_transfer` first.
 
-### `btc_wallet_send_transfer`
+#### `btc_send_transfer`
 
-Sends a transfer. Requires explicit user confirmation. Call
-`btc_wallet_preview_transfer` first and confirm before sending.
+Send BTC to one or more recipients with sat-denominated amounts. Supports
+multi-output transactions (matching Leather/Xverse `sendTransfer`).
 
 Example request:
 
 ```json
 {
-  "to_address": "bc1q...",
-  "amount_btc": 0.0006,
-  "max_fee_sats": 2000,
-  "memo": "Example payment",
+  "recipients": [
+    {"address": "bc1q...", "amount_sats": 50000},
+    {"address": "bc1q...", "amount_sats": 30000}
+  ],
   "dry_run": true
 }
 ```
@@ -90,9 +145,221 @@ Example response:
 ```json
 {
   "success": true,
-  "txid": "DRYRUN_...",
+  "txid": "DRYRUN_abc...",
+  "num_recipients": 2,
   "dry_run": true,
   "network": "testnet"
+}
+```
+
+#### `btc_send_max`
+
+Send maximum possible BTC (sweep) to a single address. Automatically calculates
+the amount after fees.
+
+Example request:
+
+```json
+{
+  "to_address": "bc1q...",
+  "dry_run": true
+}
+```
+
+#### `btc_combine_utxos`
+
+Consolidate all UTXOs into a single output. Reduces future transaction fees by
+combining many small UTXOs.
+
+```json
+{
+  "to_address": "bc1q...",
+  "dry_run": true
+}
+```
+
+### PSBT Support
+
+#### `btc_sign_psbt`
+
+Sign a PSBT (Partially Signed Bitcoin Transaction). Accepts hex or base64
+encoded PSBT. Optionally broadcast after signing.
+
+```json
+{
+  "psbt": "70736274ff...",
+  "sign_at_index": [0, 1],
+  "broadcast": false,
+  "dry_run": true
+}
+```
+
+#### `btc_sign_batch_psbt`
+
+Sign multiple PSBTs in a single call.
+
+```json
+{
+  "psbts": ["70736274ff...", "70736274ff..."],
+  "broadcast": false
+}
+```
+
+#### `btc_decode_psbt`
+
+Decode a PSBT and return a human-readable summary including inputs, outputs,
+total value, and finalization status.
+
+```json
+{
+  "psbt": "70736274ff..."
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "num_inputs": 2,
+  "num_outputs": 3,
+  "total_input_sats": 150000,
+  "has_witness_utxo": true,
+  "is_finalized": false,
+  "size_bytes": 512
+}
+```
+
+### Message Signing
+
+#### `btc_sign_message`
+
+Sign a message using the wallet's private key. Supports ECDSA (legacy Bitcoin
+Signed Message) and BIP-322.
+
+```json
+{
+  "message": "Hello, world!",
+  "protocol": "ecdsa",
+  "address_type": "p2wpkh"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "signature": "H...",
+  "address": "bc1q...",
+  "message": "Hello, world!",
+  "protocol": "ecdsa"
+}
+```
+
+#### `btc_verify_message`
+
+Verify a signed Bitcoin message.
+
+```json
+{
+  "message": "Hello, world!",
+  "signature": "H...",
+  "address": "bc1q..."
+}
+```
+
+### Fee Management
+
+#### `btc_get_fees`
+
+Get recommended fee rates from mempool.space for all tiers.
+
+```json
+{
+  "success": true,
+  "fastest_sat_per_vb": 25,
+  "half_hour_sat_per_vb": 18,
+  "hour_sat_per_vb": 12,
+  "economy_sat_per_vb": 5,
+  "minimum_sat_per_vb": 1,
+  "network": "mainnet",
+  "source": "mempool.space"
+}
+```
+
+#### `btc_estimate_fee`
+
+Estimate transaction fee for given parameters.
+
+```json
+{
+  "num_inputs": 3,
+  "num_outputs": 2,
+  "address_type": "p2wpkh",
+  "fee_tier": "halfHourFee"
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "estimated_vsize": 283,
+  "fee_rate_sat_per_vb": 15,
+  "fee_sats": 4245,
+  "fee_btc": "0.00004245",
+  "network": "mainnet"
+}
+```
+
+### UTXO Management
+
+#### `btc_list_utxos`
+
+List UTXOs across all wallet address types. Supports filtering by address type,
+minimum value, and confirmation status.
+
+```json
+{
+  "address_type": "p2wpkh",
+  "min_value_sats": 1000,
+  "confirmed_only": true
+}
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "utxos": [
+    {
+      "txid": "abc...",
+      "vout": 0,
+      "value_sats": 50000,
+      "value_btc": "0.00050000",
+      "confirmed": true,
+      "address": "bc1q...",
+      "address_type": "p2wpkh"
+    }
+  ],
+  "count": 1,
+  "total_sats": 50000,
+  "total_btc": "0.00050000"
+}
+```
+
+#### `btc_get_utxo_details`
+
+Get detailed information about a specific UTXO including scriptPubKey,
+confirmation status, and transaction metadata.
+
+```json
+{
+  "txid": "abc...",
+  "vout": 0
 }
 ```
 
@@ -142,3 +409,8 @@ Add to `.cursor/mcp.json`:
   }
 }
 ```
+
+## Roadmap
+
+See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the full 6-phase
+roadmap covering Stacks, Ordinals, Runes, Swaps, Spark/Lightning, and more.
