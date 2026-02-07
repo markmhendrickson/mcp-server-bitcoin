@@ -108,7 +108,7 @@ def test_list_tools_count():
     assert ord_count == 7
     assert swap_count == 4
     assert sbtc_count == 3
-    assert len(tools) == 70
+    assert len(tools) == 73
 
 
 def test_get_addresses_returns_all_types(monkeypatch):

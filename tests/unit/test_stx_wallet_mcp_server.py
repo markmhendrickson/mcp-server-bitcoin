@@ -428,4 +428,4 @@ def test_stx_update_profile(monkeypatch):
 def test_total_tool_count():
     """All phases = 54 tools."""
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 70
+    assert len(tools) == 73

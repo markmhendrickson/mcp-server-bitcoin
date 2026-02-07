@@ -140,19 +140,15 @@ name systems, market data, hardware wallets, and inscription creation.
 | `portfolio_get_assets` | All assets (BTC, STX, fungible tokens) with balances | Done |
 | `portfolio_get_collectibles` | Inscriptions + Stacks NFTs across chains | Done |
 
-#### Sub-phase 5C: Hardware Wallets (5 tools)
-**Priority**: Lower -- Requires physical device access; useful for custody.
-**Effort**: 2-3 weeks
-**Dependencies**: Phase 1 (BTC PSBT), Phase 2 (STX signing)
-**Special requirements**: `ledgercomm` or `ledgerwallet` Python library, USB access
+#### Sub-phase 5C: Ledger Hardware Wallet -- COMPLETE (3 tools)
 
-| MCP Tool | Description | Source | Complexity |
-|----------|-------------|--------|-----------|
-| `ledger_get_addresses` | Get addresses from Ledger device | Xverse `ledger`, Leather Ledger | High -- USB HID |
-| `ledger_sign_psbt` | Sign PSBT via Ledger | Xverse `ledger/btc.ts` | High -- device protocol |
-| `ledger_sign_stx_transaction` | Sign STX transaction via Ledger | Xverse `ledger/stx.ts` | High -- device protocol |
-| `keystone_get_addresses` | Get addresses from Keystone (QR-based) | Xverse `keystone` | Medium -- QR encode/decode |
-| `keystone_sign_psbt` | Sign PSBT via Keystone | Xverse `keystone/btc.ts` | Medium -- QR encode/decode |
+| Tool | Description | Status |
+|------|-------------|--------|
+| `ledger_get_addresses` | Get BTC addresses from Ledger (P2PKH/P2SH/P2WPKH/P2TR) via USB HID | Done |
+| `ledger_sign_psbt` | Sign PSBT via Ledger Bitcoin app | Done |
+| `ledger_sign_stx_transaction` | Sign STX transaction via Ledger Stacks app | Done |
+
+Keystone support (QR-based, 2 tools) deferred to future work.
 
 #### Sub-phase 5D: Inscription Creation & Onramp (4 tools)
 **Priority**: Lower -- Niche features for creators and new users.
@@ -231,7 +227,7 @@ stx_wallet.py                     # STX wallet operations
 | 4 | MEDIUM | Medium-High -- DeFi/swaps | High | Phase 1, 2 | **DONE** |
 | 5A | MEDIUM | Medium -- Tx mgmt & wallet | Low-Medium | Phase 1-2 | **DONE** |
 | 5B | MEDIUM | Medium -- Names & market data | Low-Medium | Phase 1-2 | **DONE** |
-| 5C | LOWER | Lower -- Hardware wallets | High | Phase 1-2 | Planned |
+| 5C | LOWER | Lower -- Ledger wallet | High | Phase 1-2 | **DONE** |
 | 5D | LOWER | Lower -- Inscriptions & onramp | Medium-High | Phase 1, 3 | Planned |
 
 ---
@@ -246,9 +242,9 @@ stx_wallet.py                     # STX wallet operations
 | 4 | Swaps, DeFi, Bridge, Stacking | 10 | **DONE** |
 | 5A | Tx Management & Wallet | 8 | **DONE** |
 | 5B | BNS & Market Data | 8 | **DONE** |
-| 5C | Hardware Wallets | 5 | Planned |
+| 5C | Ledger Hardware Wallet | 3 | **DONE** |
 | 5D | Inscription Creation & Onramp | 4 | Planned |
-| **Total** | | **79** | **70 done** |
+| **Total** | | **77** | **73 done** |
 
 ---
 
@@ -273,7 +269,7 @@ stx_wallet.py                     # STX wallet operations
 | sBTC Bridge | **Yes** | Yes | No | 4 |
 | Stacking/Yield | **Yes** | Yes | Yes | 4 |
 | RBF/Speed-up | **Yes** | No | Yes | 5A |
-| Hardware Wallets | No | Yes (Ledger) | Yes (Ledger + Keystone) | 5C |
+| Hardware Wallets (Ledger) | **Yes** | Yes (Ledger) | Yes (Ledger + Keystone) | 5C |
 | BNS Names | **Yes** | Yes | No | 5B |
 | Portfolio | **Yes** | Yes | Yes | 5B |
 | Inscription Creation | No | No | Yes | 5 |

@@ -57,6 +57,12 @@ from btc_wallet import (
     verify_message,
 )
 
+from ledger_wallet import (
+    ledger_get_addresses,
+    ledger_sign_psbt,
+    ledger_sign_stx_transaction,
+)
+
 from advanced_wallet import (
     tx_cancel,
     tx_get_history,
@@ -1305,6 +1311,75 @@ async def list_tools() -> List[Tool]:
                 },
             },
         ),
+        # ===================================================================
+        # Phase 5C: Ledger Hardware Wallet
+        # ===================================================================
+        Tool(
+            name="ledger_get_addresses",
+            description=(
+                "Get BTC addresses from a connected Ledger device for all address "
+                "types (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR). Requires Ledger "
+                "connected via USB with the Bitcoin app open."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "integer", "description": "Account index (default: 0)"},
+                    "display": {
+                        "type": "boolean",
+                        "description": "If true, display address on device for verification",
+                    },
+                    "interface": {
+                        "type": "string",
+                        "enum": ["hid", "tcp"],
+                        "description": "Connection: 'hid' for USB, 'tcp' for Speculos emulator (default: hid)",
+                    },
+                },
+            },
+        ),
+        Tool(
+            name="ledger_sign_psbt",
+            description=(
+                "Sign a PSBT using the Ledger Bitcoin app. Requires Ledger "
+                "connected via USB with the Bitcoin app open. The PSBT must "
+                "contain all necessary UTXO information."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "psbt": {"type": "string", "description": "Hex-encoded PSBT"},
+                    "interface": {
+                        "type": "string",
+                        "enum": ["hid", "tcp"],
+                        "description": "Connection type (default: hid)",
+                    },
+                },
+                "required": ["psbt"],
+            },
+        ),
+        Tool(
+            name="ledger_sign_stx_transaction",
+            description=(
+                "Sign a Stacks transaction using the Ledger Stacks app. "
+                "Requires Ledger connected via USB with the Stacks app open."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "tx_hex": {"type": "string", "description": "Hex-encoded unsigned STX transaction"},
+                    "derivation_path": {
+                        "type": "string",
+                        "description": "BIP-32 derivation path (default: m/44'/5757'/0'/0/0)",
+                    },
+                    "interface": {
+                        "type": "string",
+                        "enum": ["hid", "tcp"],
+                        "description": "Connection type (default: hid)",
+                    },
+                },
+                "required": ["tx_hex"],
+            },
+        ),
     ]
 
 
@@ -1504,6 +1579,16 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_portfolio_get_assets()
         if name == "portfolio_get_collectibles":
             return await _handle_portfolio_get_collectibles(arguments)
+
+        # =================================================================
+        # Phase 5C: Ledger Hardware Wallet
+        # =================================================================
+        if name == "ledger_get_addresses":
+            return await _handle_ledger_get_addresses(arguments)
+        if name == "ledger_sign_psbt":
+            return await _handle_ledger_sign_psbt(arguments)
+        if name == "ledger_sign_stx_transaction":
+            return await _handle_ledger_sign_stx_transaction(arguments)
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -2444,6 +2529,44 @@ async def _handle_portfolio_get_collectibles(arguments: dict[str, Any]) -> List[
     stx_cfg = await asyncio.to_thread(STXConfig.from_env)
     limit = arguments.get("limit", 20)
     result = await asyncio.to_thread(portfolio_get_collectibles, btc_cfg, stx_cfg, limit)
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 5C Handlers -- Ledger Hardware Wallet
+# ===========================================================================
+
+
+async def _handle_ledger_get_addresses(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    account = arguments.get("account", 0)
+    display = arguments.get("display", False)
+    interface = arguments.get("interface", "hid")
+    result = await asyncio.to_thread(
+        ledger_get_addresses, cfg.network, account, display, interface
+    )
+    return _ok_response(result)
+
+
+async def _handle_ledger_sign_psbt(arguments: dict[str, Any]) -> List[TextContent]:
+    psbt = (arguments.get("psbt") or "").strip()
+    if not psbt:
+        return _error_response("Missing 'psbt' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    interface = arguments.get("interface", "hid")
+    result = await asyncio.to_thread(ledger_sign_psbt, psbt, cfg.network, interface)
+    return _ok_response(result)
+
+
+async def _handle_ledger_sign_stx_transaction(arguments: dict[str, Any]) -> List[TextContent]:
+    tx_hex = (arguments.get("tx_hex") or "").strip()
+    if not tx_hex:
+        return _error_response("Missing 'tx_hex' parameter.")
+    derivation_path = arguments.get("derivation_path", "m/44'/5757'/0'/0/0")
+    interface = arguments.get("interface", "hid")
+    result = await asyncio.to_thread(
+        ledger_sign_stx_transaction, tx_hex, derivation_path, interface
+    )
     return _ok_response(result)
 
 

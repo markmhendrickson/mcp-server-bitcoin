@@ -773,6 +773,37 @@ List all collectibles: Bitcoin inscriptions and Stacks NFTs. `{"limit": 20}`
 
 ---
 
+## Phase 5C: Ledger Hardware Wallet Tools
+
+Requires a Ledger device connected via USB with the appropriate app open.
+Use `interface: "tcp"` for the Speculos emulator during development.
+
+#### `ledger_get_addresses`
+
+Get BTC addresses from a Ledger device (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR).
+
+```json
+{"account": 0, "display": true, "interface": "hid"}
+```
+
+#### `ledger_sign_psbt`
+
+Sign a PSBT using the Ledger Bitcoin app.
+
+```json
+{"psbt": "70736274ff...", "interface": "hid"}
+```
+
+#### `ledger_sign_stx_transaction`
+
+Sign a Stacks transaction using the Ledger Stacks app.
+
+```json
+{"tx_hex": "00...", "derivation_path": "m/44'/5757'/0'/0/0", "interface": "hid"}
+```
+
+---
+
 ## Cursor MCP config example
 
 Add to `.cursor/mcp.json`:
@@ -789,5 +820,5 @@ Add to `.cursor/mcp.json`:
 
 ## Roadmap
 
-See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining Phase 5
-sub-phases: 5C (hardware wallets) and 5D (inscription creation, fiat onramp).
+See [LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the remaining Phase 5D
+(inscription creation, fiat onramp -- 4 tools).

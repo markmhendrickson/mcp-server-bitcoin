@@ -71,7 +71,7 @@ def test_phase5b_tools_present():
 
 def test_total_tool_count():
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 70
+    assert len(tools) == 73
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def test_wallet_get_supported_methods():
     r = asyncio.run(server._handle_wallet_get_supported_methods())
     p = _parse(r)
     assert p["success"] is True
-    assert p["count"] == 70
+    assert p["count"] == 73
     assert any(m["name"] == "btc_get_addresses" for m in p["methods"])
     assert any(m["name"] == "bns_lookup" for m in p["methods"])
 

@@ -5,3 +5,4 @@ bit>=0.8.0
 python-bitcoinlib>=0.12.2
 requests>=2.31.0
 coincurve>=21.0.0
+ledgercomm>=1.2.0
