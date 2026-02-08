@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 import requests
 
-from btc_wallet import BTCConfig, _fetch_mempool_utxos
+from bitcoin_wallet import BTCConfig, _fetch_mempool_utxos
 from stx_wallet import STXConfig, stx_call_contract, stx_get_balance, _hiro_get
 
 BTCNetwork = Literal["mainnet", "testnet"]

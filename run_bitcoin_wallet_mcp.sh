@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wrapper script for BTC Wallet MCP server
+# Wrapper script for Bitcoin Wallet MCP server
 # Loads environment variables from .env file
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -14,7 +14,7 @@ fi
 
 # Use venv Python if available, otherwise system Python
 if [ -f "$REPO_ROOT/execution/venv/bin/python3" ]; then
-    exec "$REPO_ROOT/execution/venv/bin/python3" "$SCRIPT_DIR/btc_wallet_mcp_server.py"
+    exec "$REPO_ROOT/execution/venv/bin/python3" "$SCRIPT_DIR/bitcoin_wallet_mcp_server.py"
 else
-    exec python3 "$SCRIPT_DIR/btc_wallet_mcp_server.py"
+    exec python3 "$SCRIPT_DIR/bitcoin_wallet_mcp_server.py"
 fi

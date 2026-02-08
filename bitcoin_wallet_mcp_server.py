@@ -13,7 +13,7 @@ contract queries, transaction signing, message signing, and utilities.
 Phase 3: Ordinals & Inscriptions -- 7 tools covering inscription queries,
 sending (full UTXO and split), extraction, and recovery operations.
 
-Wraps btc_wallet.py, stx_wallet.py, and ord_wallet.py as MCP tools.
+Wraps bitcoin_wallet.py, stx_wallet.py, and ord_wallet.py as MCP tools.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ SERVER_DIR = Path(__file__).resolve().parent
 load_dotenv(SERVER_DIR / ".env")
 load_dotenv(SERVER_DIR.parent / ".env")
 
-from btc_wallet import (
+from bitcoin_wallet import (
     BTCConfig,
     _fetch_btc_prices,
     build_transaction_preview,
@@ -137,7 +137,7 @@ from stx_wallet import (
     stx_update_profile,
 )
 
-app = Server("btc_wallet")
+app = Server("bitcoin_wallet")
 
 
 # ---------------------------------------------------------------------------
@@ -988,14 +988,14 @@ async def list_tools() -> List[Tool]:
         # -- 4.1 Swap Operations --
         Tool(
             name="swap_get_supported_pairs",
-            description="List supported swap pairs and protocols from Alex DEX.",
+            description="List supported swap pairs and protocols (Alex DEX pools and Bitflow ticker).",
             inputSchema={"type": "object", "properties": {}},
         ),
         Tool(
             name="swap_get_quote",
             description=(
                 "Get a swap quote with estimated output, exchange rate, and fees. "
-                "Uses Alex DEX token prices."
+                "Protocol: alex (default), bitflow, or velar. Alex and Velar use Alex token prices; Bitflow uses Bitflow ticker."
             ),
             inputSchema={
                 "type": "object",
@@ -1014,7 +1014,7 @@ async def list_tools() -> List[Tool]:
                     },
                     "protocol": {
                         "type": "string",
-                        "description": "DEX protocol (default: alex)",
+                        "description": "DEX protocol: alex (default), bitflow, or velar",
                     },
                 },
                 "required": ["token_in", "token_out", "amount"],
@@ -1024,7 +1024,7 @@ async def list_tools() -> List[Tool]:
             name="swap_execute",
             description=(
                 "Execute a token swap via DEX smart contract call. "
-                "Gets a quote, then calls the swap router contract."
+                "Only protocol=alex is supported for execution; use protocol=alex (default)."
             ),
             inputSchema={
                 "type": "object",
@@ -1036,7 +1036,7 @@ async def list_tools() -> List[Tool]:
                         "type": "integer",
                         "description": "Minimum acceptable output (slippage protection)",
                     },
-                    "protocol": {"type": "string", "description": "DEX protocol (default: alex)"},
+                    "protocol": {"type": "string", "description": "Must be alex for execution (default: alex)"},
                     "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
                 },
                 "required": ["token_in", "token_out", "amount"],
@@ -1745,10 +1745,25 @@ async def _handle_get_info() -> List[TextContent]:
 async def _handle_get_balance() -> List[TextContent]:
     try:
         cfg = await asyncio.to_thread(BTCConfig.from_env)
-        balance = await asyncio.to_thread(get_balance_btc, cfg)
+        accounts = await asyncio.to_thread(get_accounts, cfg)
+        
+        # Aggregate wallet-wide balance from all accounts
+        total_confirmed_sats = sum(acc.get("confirmed_sats", 0) for acc in accounts)
+        total_unconfirmed_sats = sum(acc.get("unconfirmed_sats", 0) for acc in accounts)
+        total_sats = total_confirmed_sats + total_unconfirmed_sats
+        
+        balance_btc = Decimal(total_sats) / Decimal("1e8")
+        confirmed_btc = Decimal(total_confirmed_sats) / Decimal("1e8")
+        unconfirmed_btc = Decimal(total_unconfirmed_sats) / Decimal("1e8")
+        
         result = {
             "success": True,
-            "balance_btc": str(balance),
+            "balance_btc": str(balance_btc),
+            "confirmed_btc": str(confirmed_btc),
+            "unconfirmed_btc": str(unconfirmed_btc),
+            "balance_sats": total_sats,
+            "confirmed_sats": total_confirmed_sats,
+            "unconfirmed_sats": total_unconfirmed_sats,
             "network": cfg.network,
         }
         return [TextContent(type="text", text=json.dumps(result))]
@@ -2428,6 +2443,8 @@ async def _handle_swap_execute(arguments: dict[str, Any]) -> List[TextContent]:
         arguments.get("min_output"), arguments.get("protocol", "alex"),
         arguments.get("dry_run"),
     )
+    if isinstance(result, dict) and result.get("ok") is False:
+        return _error_response(result.get("error", "Swap execution failed."))
     return _ok_response(result)
 
 

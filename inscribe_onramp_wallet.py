@@ -22,7 +22,7 @@ from typing import Any, Literal
 
 import requests
 
-from btc_wallet import (
+from bitcoin_wallet import (
     BTCConfig,
     _broadcast_raw_tx,
     _fetch_dynamic_fee_rate_sat_per_byte,

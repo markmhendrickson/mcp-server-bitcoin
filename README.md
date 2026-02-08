@@ -1,20 +1,188 @@
-# BTC wallet MCP server
+# Bitcoin wallet MCP server
 
-This standalone MCP server wraps `btc_wallet.py` and exposes safe wallet
-operations as tools. **Phase 1** provides 19 tools covering addresses, accounts,
-transfers (including multi-recipient and sweep), PSBT operations, message
-signing, fee management, and UTXO management.
+> **⚠️ Warning:** Experimental. Not yet safe for meaningful funds. Use only with wallets you are prepared to lose. The code is not battle-tested, audited, or hardened. This doc covers setup, configuration, running, and the full tool reference.
 
-## Tools
+## Intro
 
-### Address & Account Management
+This repo is a single [MCP](https://modelcontextprotocol.io) server that exposes Bitcoin (Layer 1) and Stacks (Layer 2) wallet operations as tools. Agents or other MCP clients connect over stdio, pass tool names and arguments as JSON, and get back structured results. The server wraps local Python wallet code and external APIs (mempool.space, Hiro, CoinGecko, etc.). Destructive actions (send, sign-and-broadcast, deploy) support `dry_run` and do not broadcast by default. No keys or mnemonics are ever returned.
 
-#### `btc_get_addresses`
+**What it exposes:** 77 tools in two groups. 
+1. **Layer 1 (Bitcoin):** addresses, balance (confirmed and unconfirmed), UTXOs, fee estimation, single and multi-recipient sends, sweep, PSBT sign/decode, message sign/verify, Ordinals / inscriptions, inscription creation, transaction history and RBF, Ledger (Bitcoin app). 
+2. **Layer 2 (Stacks):** STX addresses and balances, nonce, STX and token transfers, Clarity call/deploy/read, signing, swaps (Alex, Bitflow, Velar), sBTC bridge, stacking, BNS, market and portfolio data, Ledger (Stacks app). One mnemonic or WIF key drives both layers; Stacks keys are derived from the same seed.
 
-Return all derived wallet addresses (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR)
-with public keys and derivation paths.
 
-Example response:
+
+---
+
+## Table of contents
+
+- [Intro](#intro)
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Running the server](#running-the-server)
+- [Architecture](#architecture)
+- [Tools reference](#tools-reference)
+  - [Layer 1 (Bitcoin)](#layer-1-bitcoin)
+    - [Core Bitcoin](#core-bitcoin)
+    - [Ordinals & inscriptions](#ordinals--inscriptions)
+    - [Inscription creation & onramp](#inscription-creation--onramp)
+    - [Transaction & wallet management](#transaction--wallet-management)
+    - [Ledger hardware wallet (Bitcoin)](#ledger-hardware-wallet-bitcoin)
+  - [Layer 2 (Stacks)](#layer-2-stacks)
+    - [Stacks (STX)](#stacks-stx)
+    - [Swaps, DeFi & bridge](#swaps-defi--bridge)
+    - [BNS & market data](#bns--market-data)
+    - [Ledger hardware wallet (Stacks)](#ledger-hardware-wallet-stacks)
+- [Security](#security)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Reference](#reference)
+- [Related documents](#related-documents)
+
+---
+
+## Overview
+
+- **Purpose:** Layer 1 (Bitcoin) and Layer 2 (Stacks) wallet operations as MCP tools with a single, safe interface.
+- **Design:** Destructive operations support `dry_run` (default `true`). Responses: `{ "success": true, ... }` or `{ "success": false, "error": "..." }`. No keys or mnemonics in responses.
+
+---
+
+## Requirements
+
+- **Python**: 3.10 or later (for type hints and runtime).
+- **OS**: Any platform supported by Python and the dependencies (Linux, macOS, Windows). Ledger tools require a Ledger device and USB (or Speculos with `interface: "tcp"`).
+- **Dependencies**: Listed in `requirements.txt`; install with `pip install -r requirements.txt` (see [Installation](#installation)).
+
+| Package | Purpose |
+|--------|---------|
+| `mcp` | MCP server and stdio transport |
+| `python-dotenv` | Load `.env` configuration |
+| `bip-utils` | BIP-39/44/84 derivation |
+| `bit` | Bitcoin transaction building (legacy paths) |
+| `python-bitcoinlib` | PSBT, keys, addresses, raw tx |
+| `requests` | HTTP for mempool.space, Hiro, CoinGecko, etc. |
+| `coincurve` | ECDSA and key operations |
+| `ledgercomm` | Ledger device communication (optional for Ledger tools) |
+
+---
+
+## Installation
+
+1. **Clone** the repo. If you did not use `--recurse-submodules`, run `git submodule update --init foundation`.
+
+2. **Create a virtual environment** (recommended):
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment**: Copy `.env.example` to `.env` and set at least one key source and network (see [Configuration](#configuration)).
+
+5. **Optional**: If you use the repo’s `run_bitcoin_wallet_mcp.sh`, it will prefer `../../execution/venv` when present; otherwise it uses `python3` from `PATH`.
+
+---
+
+## Configuration
+
+Configuration comes from **environment variables**. The runner script loads `.env` from the **repository root** (two levels above this directory). You can also set variables in the shell or in your MCP host.
+
+### Key material (choose one)
+
+| Variable | Description |
+|----------|-------------|
+| `BTC_PRIVATE_KEY` | WIF private key for the wallet. |
+| `BTC_MNEMONIC` | BIP-39 mnemonic (12 or 24 words). |
+| `BTC_MNEMONIC_PASSPHRASE` | Optional BIP-39 passphrase when using `BTC_MNEMONIC`. |
+
+Stacks (STX) keys are derived from the same mnemonic using the Stacks path `m/44'/5757'/0'/0/0`.
+
+### Network and safety
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `BTC_NETWORK` | `mainnet` or `testnet`. | `testnet` |
+| `BTC_DRY_RUN` | If `true`, send/sign tools do not broadcast by default. | `true` |
+
+### Limits (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `BTC_MAX_SEND_BTC` | Maximum BTC per transfer (decimal string or number). |
+| `BTC_MAX_FEE_SATS` | Maximum fee in satoshis per transaction. |
+
+### Fee behavior
+
+| Variable | Description |
+|----------|-------------|
+| `BTC_FEE_RATE_SAT_PER_BYTE` | Fixed fee rate (sat/vB). If set, overrides tier. |
+| `BTC_FEE_TIER` | mempool.space tier: `hourFee`, `halfHourFee`, `fastestFee`. Used when no fixed rate is set. |
+
+---
+
+## Running the server
+
+- **Wrapper script** (recommended): `run_bitcoin_wallet_mcp.sh` loads `.env` from repo root, uses `execution/venv/bin/python3` if present else `python3`, runs the server over stdio.
+- **Direct:** Set env from `.env`, then run `python3 bitcoin_wallet_mcp_server.py` from this directory.
+
+### Cursor MCP config
+
+Add to `.cursor/mcp.json` (or your Cursor MCP config file):
+
+```json
+{
+  "mcpServers": {
+    "bitcoin-wallet": {
+      "command": "/absolute/path/to/repo/mcp/btc_wallet/run_bitcoin_wallet_mcp.sh"
+    }
+  }
+}
+```
+
+Use an absolute path to your repo. The server lives in `mcp/btc_wallet/`. Put `.env` at repo root if you use the script’s env loading.
+
+---
+
+## Architecture
+
+- **Entrypoint**: `bitcoin_wallet_mcp_server.py`. Single MCP server; registers all tools and delegates to wallet modules.
+- **Layer 1 (Bitcoin) modules**: `bitcoin_wallet.py` (addresses, accounts, balance, sends, PSBT, message signing, fees, UTXOs); `ord_wallet.py` (ordinals and inscriptions); `inscribe_onramp_wallet.py` (inscription creation, buy quotes); `advanced_wallet.py` (transaction history, RBF, wallet network); `ledger_wallet.py` (Ledger Bitcoin app).
+- **Layer 2 (Stacks) modules**: `stx_wallet.py` (addresses, accounts, balance, STX/token transfers, contracts, signing); `defi_wallet.py` (swaps via Alex, Bitflow, Velar; sBTC bridge; stacking); `bns_market_wallet.py` (BNS, market, portfolio); `ledger_wallet.py` (Ledger Stacks app).
+
+**Responses:** JSON with `"success": true` and data, or `"success": false` and `"error"`. Keys and mnemonics are never returned.
+
+---
+
+## Tools reference
+
+**77 tools**, grouped by Layer 1 (Bitcoin) and Layer 2 (Stacks). Parameters and response shape are below; optional args can be omitted. `dry_run` defaults to `BTC_DRY_RUN` (usually `true`).
+
+---
+
+### Layer 1 (Bitcoin)
+
+Tools for the Bitcoin chain: addresses, balance, transfers, PSBT, message signing, fees, UTXOs, ordinals, inscription creation, transaction management, and Ledger (Bitcoin app).
+
+#### Core Bitcoin
+
+Address and account management, balance, prices, transfers, PSBT, message signing, fees, UTXOs.
+
+| Tool | Description |
+|------|-------------|
+| `btc_get_addresses` | All derived addresses (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR) with public keys and derivation paths. |
+| `btc_get_accounts` | Accounts with balances per address type; uses mempool.space for UTXO data. |
+| `btc_get_info` | Wallet version, network, supported tools, and configuration (e.g. dry_run_default, fee_tier). |
+
+**Parameters**: None.
+
+**Example response** (`btc_get_addresses`):
 
 ```json
 {
@@ -33,836 +201,346 @@ Example response:
 }
 ```
 
-#### `btc_get_accounts`
+---
 
-List accounts with balances across all address types. Queries mempool.space
-for live UTXO data.
+| Tool | Description |
+|------|-------------|
+| `btc_wallet_get_balance` | Current wallet balance in BTC. |
+| `btc_wallet_get_prices` | Current BTC prices in USD and EUR. |
 
-Example response:
+**Parameters**: None.
 
-```json
-{
-  "success": true,
-  "accounts": [
-    {
-      "type": "p2wpkh",
-      "address": "bc1q...",
-      "balance_sats": 123456,
-      "balance_btc": "0.00123456",
-      "utxo_count": 3,
-      "label": "bip84_p2wpkh_0"
-    }
-  ],
-  "total_balance_sats": 123456,
-  "total_balance_btc": "0.00123456",
-  "network": "mainnet"
-}
-```
+**Example response** (`btc_wallet_get_balance`): `{ "success": true, "balance_btc": "0.12345678", "network": "testnet" }`  
+**Example response** (`btc_wallet_get_prices`): `{ "success": true, "usd": "91000.12", "eur": "84000.34" }`
 
-#### `btc_get_info`
+---
 
-Return wallet version, network, supported tools, and configuration.
+| Tool | Description |
+|------|-------------|
+| `btc_wallet_preview_transfer` | Preview a transfer and estimated fees. Provide either `amount_btc` or `amount_eur`. |
+| `btc_wallet_send_transfer` | Send BTC to a single recipient (BTC or EUR amount). Prefer calling the preview tool first and require explicit user confirmation. |
 
-Example response:
+**Parameters** (preview): `to_address` (required), `amount_btc` or `amount_eur` (one required).  
+**Parameters** (send): `to_address` (required), `amount_btc` or `amount_eur` (one required), optional `max_fee_sats`, `memo`, `dry_run`.
 
-```json
-{
-  "success": true,
-  "version": "0.2.0",
-  "network": "testnet",
-  "dry_run_default": true,
-  "fee_tier": "hourFee",
-  "supported_tools": ["btc_get_addresses", "btc_send_transfer", "..."]
-}
-```
+---
 
-### Balance & Prices
+| Tool | Description |
+|------|-------------|
+| `btc_send_transfer` | Send BTC to one or more recipients with amounts in sats; multi-output. |
+| `btc_send_max` | Sweep: send maximum spendable BTC to one address (amount after fees). |
+| `btc_combine_utxos` | Consolidate UTXOs into one output (optionally to a given address). |
 
-#### `btc_wallet_get_balance`
+**Parameters** (`btc_send_transfer`): `recipients` (array of `{ "address", "amount_sats" }`), optional `max_fee_sats`, `memo`, `dry_run`.  
+**Parameters** (`btc_send_max`): `to_address` (required), optional `fee_rate`, `dry_run`.  
+**Parameters** (`btc_combine_utxos`): optional `to_address`, `fee_rate`, `dry_run`.
 
-Returns the current wallet balance in BTC.
-
-```json
-{
-  "success": true,
-  "balance_btc": "0.12345678",
-  "network": "testnet"
-}
-```
-
-#### `btc_wallet_get_prices`
-
-Returns current BTC prices in USD and EUR.
-
-```json
-{
-  "success": true,
-  "usd": "91000.12",
-  "eur": "84000.34"
-}
-```
-
-### Transfers
-
-#### `btc_wallet_preview_transfer`
-
-Previews a transfer and returns estimated fees. Provide either `amount_btc` or
-`amount_eur`.
-
-Example request:
-
-```json
-{
-  "to_address": "bc1q...",
-  "amount_eur": 50
-}
-```
-
-#### `btc_wallet_send_transfer`
-
-Sends a BTC transfer (single recipient). Requires explicit user confirmation.
-Call `btc_wallet_preview_transfer` first.
-
-#### `btc_send_transfer`
-
-Send BTC to one or more recipients with sat-denominated amounts. Supports
-multi-output transactions (matching Leather/Xverse `sendTransfer`).
-
-Example request:
+**Example request** (`btc_send_transfer`):
 
 ```json
 {
   "recipients": [
-    {"address": "bc1q...", "amount_sats": 50000},
-    {"address": "bc1q...", "amount_sats": 30000}
+    { "address": "bc1q...", "amount_sats": 50000 },
+    { "address": "bc1q...", "amount_sats": 30000 }
   ],
   "dry_run": true
 }
 ```
 
-Example response:
+**Example response**: `{ "success": true, "txid": "DRYRUN_...", "num_recipients": 2, "dry_run": true, "network": "testnet" }`
 
-```json
-{
-  "success": true,
-  "txid": "DRYRUN_abc...",
-  "num_recipients": 2,
-  "dry_run": true,
-  "network": "testnet"
-}
-```
+---
 
-#### `btc_send_max`
+| Tool | Description |
+|------|-------------|
+| `btc_sign_psbt` | Sign a PSBT (hex or base64). Optional `sign_at_index`, `broadcast`, `dry_run`. |
+| `btc_sign_batch_psbt` | Sign multiple PSBTs in one call. |
+| `btc_decode_psbt` | Decode a PSBT and return a human-readable summary (inputs, outputs, total value, finalization). |
 
-Send maximum possible BTC (sweep) to a single address. Automatically calculates
-the amount after fees.
+**Parameters** (`btc_sign_psbt`): `psbt` (hex or base64), optional `sign_at_index` (array of input indices), `broadcast`, `dry_run`.  
+**Parameters** (`btc_sign_batch_psbt`): `psbts` (array of PSBT strings), optional `broadcast`.  
+**Parameters** (`btc_decode_psbt`): `psbt`.
 
-Example request:
+**Example response** (`btc_decode_psbt`): `{ "success": true, "num_inputs": 2, "num_outputs": 3, "total_input_sats": 150000, "has_witness_utxo": true, "is_finalized": false, "size_bytes": 512 }`
 
-```json
-{
-  "to_address": "bc1q...",
-  "dry_run": true
-}
-```
+---
 
-#### `btc_combine_utxos`
+| Tool | Description |
+|------|-------------|
+| `btc_sign_message` | Sign a message (ECDSA legacy Bitcoin Signed Message or BIP-322). |
+| `btc_verify_message` | Verify a signed Bitcoin message. |
 
-Consolidate all UTXOs into a single output. Reduces future transaction fees by
-combining many small UTXOs.
+**Parameters** (sign): `message`, optional `protocol` (`ecdsa` | BIP-322), `address_type` (e.g. `p2wpkh`).  
+**Parameters** (verify): `message`, `signature`, `address`.
 
-```json
-{
-  "to_address": "bc1q...",
-  "dry_run": true
-}
-```
+**Example response** (sign): `{ "success": true, "signature": "H...", "address": "bc1q...", "message": "Hello, world!", "protocol": "ecdsa" }`
 
-### PSBT Support
+---
 
-#### `btc_sign_psbt`
+| Tool | Description |
+|------|-------------|
+| `btc_get_fees` | Recommended fee rates from mempool.space (all tiers). |
+| `btc_estimate_fee` | Estimate fee for given input/output count and address type. |
 
-Sign a PSBT (Partially Signed Bitcoin Transaction). Accepts hex or base64
-encoded PSBT. Optionally broadcast after signing.
+**Parameters** (`btc_estimate_fee`): `num_inputs`, `num_outputs`, `address_type` (e.g. `p2wpkh`), optional `fee_tier`.
 
-```json
-{
-  "psbt": "70736274ff...",
-  "sign_at_index": [0, 1],
-  "broadcast": false,
-  "dry_run": true
-}
-```
+**Example response** (`btc_get_fees`): `{ "success": true, "fastest_sat_per_vb": 25, "half_hour_sat_per_vb": 18, "hour_sat_per_vb": 12, "economy_sat_per_vb": 5, "minimum_sat_per_vb": 1, "network": "mainnet", "source": "mempool.space" }`
 
-#### `btc_sign_batch_psbt`
+---
 
-Sign multiple PSBTs in a single call.
+| Tool | Description |
+|------|-------------|
+| `btc_list_utxos` | List UTXOs with optional filters: address type, min value, confirmed only. |
+| `btc_get_utxo_details` | Detailed info for one UTXO (scriptPubKey, confirmation, tx metadata). |
 
-```json
-{
-  "psbts": ["70736274ff...", "70736274ff..."],
-  "broadcast": false
-}
-```
+**Parameters** (`btc_list_utxos`): optional `address_type`, `min_value_sats`, `confirmed_only`.  
+**Parameters** (`btc_get_utxo_details`): `txid`, `vout`.
 
-#### `btc_decode_psbt`
+**Example response** (`btc_list_utxos`): `{ "success": true, "utxos": [{ "txid": "...", "vout": 0, "value_sats": 50000, "value_btc": "0.00050000", "confirmed": true, "address": "bc1q...", "address_type": "p2wpkh" }], "count": 1, "total_sats": 50000, "total_btc": "0.00050000" }`
 
-Decode a PSBT and return a human-readable summary including inputs, outputs,
-total value, and finalization status.
+---
 
-```json
-{
-  "psbt": "70736274ff..."
-}
-```
+#### Ordinals & inscriptions
 
-Example response:
+Uses Hiro Ordinals API for inscription data; taproot (P2TR) for ordinals storage; P2WPKH for fee funding.
 
-```json
-{
-  "success": true,
-  "num_inputs": 2,
-  "num_outputs": 3,
-  "total_input_sats": 150000,
-  "has_witness_utxo": true,
-  "is_finalized": false,
-  "size_bytes": 512
-}
-```
+| Tool | Description |
+|------|-------------|
+| `ord_get_inscriptions` | List inscriptions owned by the wallet; pagination via `offset`, `limit`. |
+| `ord_get_inscription_details` | Detailed inscription info (genesis, content type, sat ordinal, rarity, UTXO location). |
 
-### Message Signing
+**Parameters** (`ord_get_inscriptions`): optional `offset`, `limit`.  
+**Parameters** (`ord_get_inscription_details`): `inscription_id`.
 
-#### `btc_sign_message`
+---
 
-Sign a message using the wallet's private key. Supports ECDSA (legacy Bitcoin
-Signed Message) and BIP-322.
+| Tool | Description |
+|------|-------------|
+| `ord_send_inscriptions` | Send inscriptions to recipients; full UTXO transfer; separate payment UTXO for fees. |
+| `ord_send_inscriptions_split` | Send inscriptions with UTXO splitting (only the inscription's sat range to recipient, rest to sender). |
+| `ord_extract_from_utxo` | Extract ordinals from a mixed UTXO into separate outputs. |
+| `ord_recover_bitcoin` | Recover BTC from ordinals address (sweep non-inscription UTXOs to payment address). |
+| `ord_recover_ordinals` | Move inscription-bearing UTXOs from payment address to ordinals (taproot) address. |
 
-```json
-{
-  "message": "Hello, world!",
-  "protocol": "ecdsa",
-  "address_type": "p2wpkh"
-}
-```
+**Parameters** (send tools): `transfers` (array of `{ "address", "inscriptionId" }`), optional `dry_run`.  
+**Parameters** (`ord_extract_from_utxo`): `outpoint` (`txid:vout`), optional `dry_run`.  
+**Parameters** (recover tools): optional `dry_run`.
 
-Example response:
+---
 
-```json
-{
-  "success": true,
-  "signature": "H...",
-  "address": "bc1q...",
-  "message": "Hello, world!",
-  "protocol": "ecdsa"
-}
-```
+#### Inscription creation & onramp
 
-#### `btc_verify_message`
+| Tool | Description |
+|------|-------------|
+| `ord_create_inscription` | Create a single inscription; content type and body; estimates commit/reveal fees. |
+| `ord_create_repeat_inscriptions` | Create multiple inscriptions in batch with shared fee estimation. |
+| `buy_get_providers` | List fiat-to-crypto onramp providers and supported currencies. |
+| `buy_get_quote` | Fiat-to-crypto quote (e.g. price and fees). |
 
-Verify a signed Bitcoin message.
+**Parameters** (`ord_create_inscription`): `content_type`, `content` (text or hex if `content_encoding`: `hex`), optional `content_encoding`, `dry_run`.  
+**Parameters** (`ord_create_repeat_inscriptions`): `content_type`, `contents` (array), optional `dry_run`.  
+**Parameters** (`buy_get_providers`): optional `crypto`, `fiat`.  
+**Parameters** (`buy_get_quote`): `crypto`, `fiat`, `fiat_amount` (or equivalent).
 
-```json
-{
-  "message": "Hello, world!",
-  "signature": "H...",
-  "address": "bc1q..."
-}
-```
+---
 
-### Fee Management
+#### Transaction & wallet management
 
-#### `btc_get_fees`
+| Tool | Description |
+|------|-------------|
+| `tx_get_history` | Transaction history for BTC and/or STX. |
+| `tx_get_status` | Status of a single transaction (BTC or STX). |
+| `tx_speed_up` | Speed up pending BTC tx via RBF. |
+| `tx_cancel` | Cancel pending BTC tx (RBF send-to-self). |
+| `wallet_get_network` | Current network config, API endpoints, fee settings. |
+| `wallet_switch_network` | Switch between mainnet and testnet. |
+| `wallet_add_network` | Add custom network (name, BTC API URL, etc.). |
+| `wallet_get_supported_methods` | List all MCP tool names and descriptions. |
 
-Get recommended fee rates from mempool.space for all tiers.
+**Parameters** (`tx_get_history`): optional `chain` (`btc` | `stx` | `both`), `limit`.  
+**Parameters** (`tx_get_status`): `txid`, `chain` (`btc` | `stx`).  
+**Parameters** (`tx_speed_up`, `tx_cancel`): `txid`, optional `dry_run`.  
+**Parameters** (`wallet_switch_network`): `network` (`mainnet` | `testnet`).  
+**Parameters** (`wallet_add_network`): `name`, `btc_api_url`, and other endpoint fields as needed.
 
-```json
-{
-  "success": true,
-  "fastest_sat_per_vb": 25,
-  "half_hour_sat_per_vb": 18,
-  "hour_sat_per_vb": 12,
-  "economy_sat_per_vb": 5,
-  "minimum_sat_per_vb": 1,
-  "network": "mainnet",
-  "source": "mempool.space"
-}
-```
+---
 
-#### `btc_estimate_fee`
+#### Ledger hardware wallet (Bitcoin)
 
-Estimate transaction fee for given parameters.
+Requires a Ledger device connected via USB with the Bitcoin app open. Use `interface: "tcp"` for Speculos.
 
-```json
-{
-  "num_inputs": 3,
-  "num_outputs": 2,
-  "address_type": "p2wpkh",
-  "fee_tier": "halfHourFee"
-}
-```
+| Tool | Description |
+|------|-------------|
+| `ledger_get_addresses` | Get BTC addresses (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR) from Ledger. |
+| `ledger_sign_psbt` | Sign a PSBT with Ledger Bitcoin app. |
 
-Example response:
+**Parameters**: `account` (optional), `display` (optional, show on device), `interface` (`hid` or `tcp` for Speculos).  
+**Parameters** (sign PSBT): `psbt`, `interface`.
 
-```json
-{
-  "success": true,
-  "estimated_vsize": 283,
-  "fee_rate_sat_per_vb": 15,
-  "fee_sats": 4245,
-  "fee_btc": "0.00004245",
-  "network": "mainnet"
-}
-```
+---
 
-### UTXO Management
+### Layer 2 (Stacks)
 
-#### `btc_list_utxos`
+Tools for the Stacks chain: STX addresses, balance, transfers, contracts, swaps, sBTC bridge, stacking, BNS, market/portfolio data, and Ledger (Stacks app).
 
-List UTXOs across all wallet address types. Supports filtering by address type,
-minimum value, and confirmation status.
+#### Stacks (STX)
 
-```json
-{
-  "address_type": "p2wpkh",
-  "min_value_sats": 1000,
-  "confirmed_only": true
-}
-```
+Keys are derived from `BTC_MNEMONIC` using path `m/44'/5757'/0'/0/0`. Hiro Stacks API is used for chain data and broadcasting.
 
-Example response:
+| Tool | Description |
+|------|-------------|
+| `stx_get_addresses` | Stacks addresses with public keys and derivation paths. |
+| `stx_get_accounts` | Accounts with STX balance, locked amounts, nonces. |
+| `stx_get_balance` | STX balance plus fungible and non-fungible token balances for an address. |
+| `stx_get_networks` | Available Stacks networks (mainnet, testnet) with chain IDs and API URLs. |
 
-```json
-{
-  "success": true,
-  "utxos": [
-    {
-      "txid": "abc...",
-      "vout": 0,
-      "value_sats": 50000,
-      "value_btc": "0.00050000",
-      "confirmed": true,
-      "address": "bc1q...",
-      "address_type": "p2wpkh"
-    }
-  ],
-  "count": 1,
-  "total_sats": 50000,
-  "total_btc": "0.00050000"
-}
-```
+**Parameters** (`stx_get_balance`): optional `address`.
 
-#### `btc_get_utxo_details`
+**Example response** (`stx_get_balance`): `{ "success": true, "address": "SP...", "balance_ustx": 5000000, "balance_stx": "5.000000", "fungible_tokens": [...], "non_fungible_tokens": [...] }`
 
-Get detailed information about a specific UTXO including scriptPubKey,
-confirmation status, and transaction metadata.
+---
 
-```json
-{
-  "txid": "abc...",
-  "vout": 0
-}
-```
+| Tool | Description |
+|------|-------------|
+| `stx_transfer_stx` | Transfer STX; amount in micro-STX (1 STX = 1_000_000 uSTX). |
+| `stx_preview_transfer` | Preview STX transfer with fee and balance check. |
+| `stx_transfer_sip10_ft` | Transfer a SIP-10 fungible token via contract call. |
+| `stx_transfer_sip9_nft` | Transfer a SIP-9 NFT via contract call. |
 
-## Setup
+**Parameters** (`stx_transfer_stx`): `recipient`, `amount_ustx`, optional `memo`, `dry_run`.  
+**Parameters** (`stx_transfer_sip10_ft`): `recipient`, `asset` (e.g. `SP...contract::token`), `amount`, optional `dry_run`.  
+**Parameters** (`stx_transfer_sip9_nft`): `recipient`, `asset`, `asset_id`, optional `dry_run`.
 
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-2. Create a `.env` file in this directory (or parent directory) with your wallet configuration.
+| Tool | Description |
+|------|-------------|
+| `stx_call_contract` | Call a public Clarity function; args in Clarity notation. |
+| `stx_deploy_contract` | Deploy a Clarity contract. |
+| `stx_read_contract` | Read-only contract call (no transaction). |
 
-## Configuration
+**Parameters** (`stx_call_contract`): `contract_address`, `contract_name`, `function_name`, `function_args` (array of Clarity literals), optional `dry_run`.  
+**Parameters** (`stx_deploy_contract`): `contract_name`, `clarity_code`, optional `dry_run`.  
+**Parameters** (`stx_read_contract`): `contract_address`, `contract_name`, `function_name`, optional `function_args`.
 
-The server reads configuration from environment variables or a `.env` file. Provide
-key material in one of these forms:
+Clarity argument examples: `u100`, `i-5`, `true`/`false`, `none`, `'SP...` (principal), `0xDEADBEEF` (buffer), `"hello"` (string-ascii).
 
-- `BTC_PRIVATE_KEY` for a WIF private key
-- `BTC_MNEMONIC` for a BIP-39 seed phrase
-- `BTC_MNEMONIC_PASSPHRASE` optional passphrase
+---
 
-Additional settings:
+| Tool | Description |
+|------|-------------|
+| `stx_sign_transaction` | Sign a serialized Stacks transaction (SIP-30); hex in, signed hex out. |
+| `stx_sign_transactions` | Sign multiple Stacks transactions. |
+| `stx_sign_message` | Sign a UTF-8 message (recoverable ECDSA). |
+| `stx_sign_structured_message` | Sign SIP-018 structured data (domain + message). |
+| `stx_get_nonce` | Current nonce for a Stacks address. |
+| `stx_estimate_fee` | Estimate Stacks transaction fee in micro-STX. |
+| `stx_update_profile` | Update on-chain profile (schema.org/Person); requires BNS name. |
 
-- `BTC_NETWORK` set to `mainnet` or `testnet` (default: testnet)
-- `BTC_DRY_RUN` set to `true` or `false` (default: true)
-- `BTC_MAX_SEND_BTC` optional per transfer limit
-- `BTC_MAX_FEE_SATS` optional max fee cap
-- `BTC_FEE_RATE_SAT_PER_BYTE` optional fixed fee rate
-- `BTC_FEE_TIER` choose fee tier from mempool space (hourFee, halfHourFee, fastestFee)
+**Parameters** (`stx_sign_message`): `message`.  
+**Parameters** (`stx_sign_structured_message`): `domain`, `message` (JSON string).  
+**Parameters** (`stx_get_nonce`): optional `address`.
+
+---
+
+#### Swaps, DeFi & bridge
+
+**Swap protocols:** Alex, Bitflow, and Velar. Use `protocol` for quotes and pair listing: **alex** (pools and token prices), **bitflow** (ticker API), **velar** (Alex token prices). **Execution is Alex only:** call `swap_execute` with `protocol=alex` (or omit; default is alex). For bitflow or velar you get a quote only; to execute, use protocol alex.
+
+| Tool | Description |
+|------|-------------|
+| `swap_get_supported_pairs` | List supported swap pairs and protocols (Alex pools, Bitflow ticker). |
+| `swap_get_quote` | Get swap quote: estimated output, rate, fees. Protocol: alex (default), bitflow, or velar. |
+| `swap_execute` | Execute swap via Alex DEX contract call (protocol must be alex). |
+| `swap_get_history` | Swap transaction history from on-chain activity. |
+| `sbtc_get_balance` | sBTC token balance for the wallet. |
+| `sbtc_bridge_deposit` | Deposit info for bridging BTC → sBTC. |
+| `sbtc_bridge_withdraw` | Withdrawal info for sBTC → BTC. |
+| `stx_get_stacking_info` | PoX stacking status, cycle info, thresholds, wallet stacking state. |
+| `stx_stack` | Initiate STX solo stacking (lock STX for reward cycles). |
+| `stx_revoke_delegation` | Revoke stacking delegation via PoX contract. |
+
+**Parameters** (`swap_get_quote`): `token_in`, `token_out`, `amount`, optional `protocol` (`alex` \| `bitflow` \| `velar`, default `alex`).  
+**Parameters** (`swap_execute`): `token_in`, `token_out`, `amount`, optional `min_output`, `protocol` (must be `alex` for execution), `dry_run`.  
+**Parameters** (`sbtc_bridge_deposit`): `amount_sats`, optional `dry_run`.  
+**Parameters** (`sbtc_bridge_withdraw`): `amount_sats`, `btc_address`, optional `dry_run`.  
+**Parameters** (`stx_stack`): `amount_ustx`, `pox_address`, `num_cycles`, optional `dry_run`.
+
+---
+
+#### BNS & market data
+
+| Tool | Description |
+|------|-------------|
+| `bns_lookup` | Resolve BNS name to Stacks address. |
+| `bns_get_names` | BNS names owned by an address. |
+| `bns_register` | Register a BNS name (contract call). |
+| `market_get_prices` | Multi-asset prices (e.g. CoinGecko). |
+| `market_get_history` | Price history for charting. |
+| `portfolio_get_summary` | Portfolio summary with USD valuations (BTC + STX). |
+| `portfolio_get_assets` | All assets (BTC, STX, fungible tokens) with balances. |
+| `portfolio_get_collectibles` | Collectibles: Bitcoin inscriptions and Stacks NFTs. |
+
+**Parameters** (`bns_lookup`): `name` (e.g. `alice.btc`).  
+**Parameters** (`bns_get_names`): `address`.  
+**Parameters** (`bns_register`): `name`, `namespace` (e.g. `btc`), optional `dry_run`.  
+**Parameters** (`market_get_prices`): `coins` (e.g. `["bitcoin", "blockstack"]`).  
+**Parameters** (`market_get_history`): `coin`, `days`, optional `interval` (e.g. `daily`).  
+**Parameters** (`portfolio_get_collectibles`): optional `limit`.
+
+---
+
+#### Ledger hardware wallet (Stacks)
+
+Requires a Ledger device connected via USB with the Stacks app open. Use `interface: "tcp"` for Speculos.
+
+| Tool | Description |
+|------|-------------|
+| `ledger_sign_stx_transaction` | Sign a Stacks transaction with Ledger Stacks app. |
+
+**Parameters** (sign STX): `tx_hex`, optional `derivation_path`, `interface`.
+
+---
 
 ## Security
 
-- No secrets are returned in tool responses.
-- Use preview and user confirmation before sending.
-- Use `dry_run` for safety in automated workflows.
+- **Secrets:** MUST NOT be returned in tool responses (keys, mnemonics, passphrases).
+- **Destructive ops:** Send, sign-and-broadcast, and deploy tools support `dry_run`. Keep `BTC_DRY_RUN=true` unless you intend to broadcast. Require explicit confirmation before `dry_run=false`.
+- **Preview first:** Use preview/estimate tools before sending (e.g. `btc_wallet_preview_transfer`, `btc_estimate_fee`, `stx_preview_transfer`).
+- **Limits:** Optional `BTC_MAX_SEND_BTC` and `BTC_MAX_FEE_SATS` cap amount and fees.
+- **Env:** Keep `.env` out of version control and restrict permissions. Run script loads it from repo root.
 
 ---
 
-## Phase 2: Stacks (STX) Tools
+## Testing
 
-All STX tools derive keys from the same `BTC_MNEMONIC` using the Stacks
-derivation path (`m/44'/5757'/0'/0/0`). The Hiro Stacks API is used for
-on-chain queries and broadcasting.
+Unit tests live under `tests/unit/` and target MCP server behavior and wallet modules:
 
-### Stacks Address & Account Management
-
-#### `stx_get_addresses`
-
-Get Stacks addresses with public keys and derivation paths.
-
-```json
-{
-  "success": true,
-  "addresses": [{"symbol": "STX", "address": "SP...", "publicKey": "02...", "derivationPath": "m/44'/5757'/0'/0/0"}],
-  "network": "mainnet"
-}
+```bash
+# From mcp/btc_wallet (this directory) or repo root
+python -m pytest mcp/btc_wallet/tests/unit -v
 ```
 
-#### `stx_get_accounts`
-
-Get Stacks accounts with STX balances, locked amounts, and nonces.
-
-#### `stx_get_balance`
-
-Get STX balance and all fungible/non-fungible token balances for an address.
-
-```json
-{
-  "success": true,
-  "address": "SP...",
-  "balance_ustx": 5000000,
-  "balance_stx": "5.000000",
-  "fungible_tokens": [{"token_id": "SP...::token", "balance": "1000"}],
-  "non_fungible_tokens": [{"token_id": "SP...::nft", "count": 3}]
-}
-```
-
-#### `stx_get_networks`
-
-List available Stacks networks (mainnet, testnet) with chain IDs and API URLs.
-
-### STX Transfers
-
-#### `stx_transfer_stx`
-
-Transfer STX to a recipient. Amount in micro-STX (1 STX = 1,000,000 uSTX).
-
-```json
-{"recipient": "SP...", "amount_ustx": 1000000, "memo": "payment", "dry_run": true}
-```
-
-#### `stx_preview_transfer`
-
-Preview an STX transfer with fee estimation and balance check.
-
-#### `stx_transfer_sip10_ft`
-
-Transfer a SIP-10 fungible token via contract call.
-
-```json
-{"recipient": "SP...", "asset": "SP....contract-name::token-name", "amount": 100, "dry_run": true}
-```
-
-#### `stx_transfer_sip9_nft`
-
-Transfer a SIP-9 non-fungible token via contract call.
-
-```json
-{"recipient": "SP...", "asset": "SP....contract-name::nft-name", "asset_id": "1", "dry_run": true}
-```
-
-### Smart Contract Interaction
-
-#### `stx_call_contract`
-
-Call a public Clarity smart contract function. Arguments use Clarity notation.
-
-```json
-{
-  "contract_address": "SP...",
-  "contract_name": "my-contract",
-  "function_name": "transfer",
-  "function_args": ["u100", "'SP...", "true"],
-  "dry_run": true
-}
-```
-
-Supported argument types:
-- `u100` -- uint
-- `i-5` -- int
-- `true` / `false` -- bool
-- `none` -- optional none
-- `'SPaddr...` -- standard principal
-- `0xDEADBEEF` -- buffer
-- `"hello"` -- string-ascii
-
-#### `stx_deploy_contract`
-
-Deploy a Clarity smart contract.
-
-```json
-{"contract_name": "my-counter", "clarity_code": "(define-data-var counter uint u0)...", "dry_run": true}
-```
-
-#### `stx_read_contract`
-
-Read-only call to a Clarity contract function (no transaction needed).
-
-```json
-{"contract_address": "SP...", "contract_name": "my-contract", "function_name": "get-balance", "function_args": ["'SP..."]}
-```
-
-### Stacks Transaction Signing
-
-#### `stx_sign_transaction`
-
-Sign a serialized Stacks transaction (SIP-30 compatible). Takes hex-encoded
-unsigned transaction, returns signed hex.
-
-#### `stx_sign_transactions`
-
-Sign multiple Stacks transactions in batch.
-
-### Stacks Message Signing
-
-#### `stx_sign_message`
-
-Sign a UTF-8 message on Stacks. Returns recoverable ECDSA signature.
-
-```json
-{"message": "Hello Stacks!"}
-```
-
-#### `stx_sign_structured_message`
-
-Sign SIP-018 structured data with domain and message.
-
-```json
-{"domain": "my-app", "message": "{\"action\":\"login\"}"}
-```
-
-### Stacks Utilities
-
-#### `stx_get_nonce`
-
-Get the current nonce for a Stacks address.
-
-#### `stx_estimate_fee`
-
-Estimate Stacks transaction fee in micro-STX.
-
-#### `stx_update_profile`
-
-Update an on-chain profile (schema.org/Person). Requires a registered BNS name.
+Test modules include: `test_bitcoin_wallet_mcp_server.py`, `test_stx_wallet_mcp_server.py`, `test_ord_wallet_mcp_server.py`, `test_defi_wallet_mcp_server.py`, `test_phase5ab_mcp_server.py`, `test_phase5d_mcp_server.py`, `test_ledger_wallet_mcp_server.py`. Ledger tests require a device or Speculos.
 
 ---
 
----
+## Troubleshooting
 
-## Phase 3: Ordinals & Inscriptions Tools
-
-Ordinals tools use the Hiro Ordinals API for inscription discovery and the
-wallet's taproot (P2TR) address for ordinals storage. Inscription transfers
-use the P2WPKH payment address for fee funding.
-
-### Inscription Queries
-
-#### `ord_get_inscriptions`
-
-List inscriptions owned by the wallet with pagination.
-
-```json
-{"offset": 0, "limit": 20}
-```
-
-Returns inscription IDs, content types, sat rarity, locations, and values.
-
-#### `ord_get_inscription_details`
-
-Get detailed info for a specific inscription including genesis data, content
-type, sat ordinal, rarity, and current UTXO location.
-
-```json
-{"inscription_id": "abc123...i0"}
-```
-
-### Sending Inscriptions
-
-#### `ord_send_inscriptions`
-
-Send inscriptions to recipients. Transfers the full UTXO containing each
-inscription, using a separate payment UTXO for fees.
-
-```json
-{
-  "transfers": [
-    {"address": "bc1p...", "inscriptionId": "abc123...i0"}
-  ],
-  "dry_run": true
-}
-```
-
-#### `ord_send_inscriptions_split`
-
-Send inscriptions with UTXO splitting. When an inscription sits in a large
-UTXO at a specific offset, splits it so only the inscription's sat range
-goes to the recipient and the remainder returns to the sender.
-
-```json
-{
-  "transfers": [
-    {"address": "bc1p...", "inscriptionId": "abc123...i0"}
-  ],
-  "dry_run": true
-}
-```
-
-### Extract & Recover
-
-#### `ord_extract_from_utxo`
-
-Extract ordinals from a mixed UTXO into individual outputs.
-
-```json
-{"outpoint": "txid:vout", "dry_run": true}
-```
-
-#### `ord_recover_bitcoin`
-
-Recover BTC trapped in the ordinals (taproot) address. Finds UTXOs without
-inscriptions and sweeps them to the payment address.
-
-```json
-{"dry_run": true}
-```
-
-#### `ord_recover_ordinals`
-
-Recover ordinals that ended up on the payment address. Moves
-inscription-bearing UTXOs to the ordinals (taproot) address.
-
-```json
-{"dry_run": true}
-```
+| Issue | What to check |
+|-------|----------------|
+| Server fails to start | Python 3.10+, `pip install -r requirements.txt`, and correct `PATH`. |
+| "Missing key" or "No mnemonic" | Set exactly one of `BTC_PRIVATE_KEY` or `BTC_MNEMONIC` in `.env` (and ensure the run script loads it from repo root). |
+| Wrong network | Set `BTC_NETWORK=mainnet` or `testnet`; some tools also accept an explicit `network` argument. |
+| Transfers not broadcasting | Confirm `BTC_DRY_RUN` and/or the tool’s `dry_run` are `false` when you intend to broadcast. |
+| Ledger "No device" | Device connected, Bitcoin/Stacks app open, no other app holding the device; try `interface: "tcp"` with Speculos for dev. |
+| Fee or balance errors | Check mempool.space (or configured API) is reachable; for Stacks, check Hiro API and network. |
+| Import errors | Run from repo root or from `mcp/btc_wallet` so that `bitcoin_wallet`, `stx_wallet`, etc. are importable; or install the package if you use a package layout. |
 
 ---
 
-## Phase 4: Swaps, DeFi & Bridge Tools
+## Reference
 
-### Swap Operations
+- **MCP**: [Model Context Protocol](https://modelcontextprotocol.io). Protocol and tool contract used by this server.
+- **Foundation**: [markmhendrickson/foundation](https://github.com/markmhendrickson/foundation). Shared development processes and documentation conventions. After cloning, run `git submodule update --init foundation` if the `foundation/` directory is empty.
 
-#### `swap_get_supported_pairs`
-
-List supported swap pairs and protocols from Alex DEX.
-
-#### `swap_get_quote`
-
-Get a swap quote with estimated output, exchange rate, and fees.
-
-```json
-{"token_in": "STX", "token_out": "SP102...token-alex", "amount": 1000000}
-```
-
-#### `swap_execute`
-
-Execute a token swap via DEX smart contract call.
-
-```json
-{"token_in": "STX", "token_out": "SP102...token-alex", "amount": 1000000, "dry_run": true}
-```
-
-#### `swap_get_history`
-
-Get swap transaction history from on-chain activity.
-
-### sBTC Bridge
-
-#### `sbtc_get_balance`
-
-Get sBTC token balance for the wallet.
-
-#### `sbtc_bridge_deposit`
-
-Get deposit information for bridging BTC to sBTC.
-
-```json
-{"amount_sats": 100000, "dry_run": true}
-```
-
-#### `sbtc_bridge_withdraw`
-
-Get withdrawal information for converting sBTC back to BTC.
-
-```json
-{"amount_sats": 50000, "btc_address": "bc1q...", "dry_run": true}
-```
-
-### Yield / Stacking
-
-#### `stx_get_stacking_info`
-
-Get current PoX stacking status, cycle info, thresholds, and wallet stacking state.
-
-#### `stx_stack`
-
-Initiate STX solo stacking. Locks STX for reward cycles.
-
-```json
-{"amount_ustx": 100000000000, "pox_address": "bc1q...", "num_cycles": 6, "dry_run": true}
-```
-
-#### `stx_revoke_delegation`
-
-Revoke stacking delegation via the PoX contract.
-
----
-
-## Phase 5A: Transaction Management & Wallet Tools
-
-#### `tx_get_history`
-Get transaction history for BTC and/or STX. `{"chain": "both", "limit": 20}`
-
-#### `tx_get_status`
-Get status of a specific transaction. `{"txid": "abc...", "chain": "btc"}`
-
-#### `tx_speed_up`
-Speed up a pending BTC transaction via RBF. `{"txid": "abc...", "dry_run": true}`
-
-#### `tx_cancel`
-Cancel a pending BTC transaction (sends funds back to self). `{"txid": "abc...", "dry_run": true}`
-
-#### `wallet_get_network`
-Get current network config, API endpoints, fee settings.
-
-#### `wallet_switch_network`
-Switch between mainnet and testnet. `{"network": "mainnet"}`
-
-#### `wallet_add_network`
-Add custom network with API URLs. `{"name": "custom", "btc_api_url": "..."}`
-
-#### `wallet_get_supported_methods`
-List all 70 available MCP tools with descriptions.
-
----
-
-## Phase 5B: BNS & Market Data Tools
-
-#### `bns_lookup`
-Resolve a BNS name to its Stacks address. `{"name": "alice.btc"}`
-
-#### `bns_get_names`
-Get BNS names owned by an address. `{"address": "SP..."}`
-
-#### `bns_register`
-Register a BNS name. `{"name": "myname", "namespace": "btc", "dry_run": true}`
-
-#### `market_get_prices`
-Multi-asset prices from CoinGecko. `{"coins": ["bitcoin", "blockstack"]}`
-
-#### `market_get_history`
-Price history for charting. `{"coin": "bitcoin", "days": 30, "interval": "daily"}`
-
-#### `portfolio_get_summary`
-Full portfolio summary with USD valuations across BTC and STX.
-
-#### `portfolio_get_assets`
-List all assets (BTC, STX, fungible tokens) with balances.
-
-#### `portfolio_get_collectibles`
-List all collectibles: Bitcoin inscriptions and Stacks NFTs. `{"limit": 20}`
-
----
-
-## Phase 5C: Ledger Hardware Wallet Tools
-
-Requires a Ledger device connected via USB with the appropriate app open.
-Use `interface: "tcp"` for the Speculos emulator during development.
-
-#### `ledger_get_addresses`
-
-Get BTC addresses from a Ledger device (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR).
-
-```json
-{"account": 0, "display": true, "interface": "hid"}
-```
-
-#### `ledger_sign_psbt`
-
-Sign a PSBT using the Ledger Bitcoin app.
-
-```json
-{"psbt": "70736274ff...", "interface": "hid"}
-```
-
-#### `ledger_sign_stx_transaction`
-
-Sign a Stacks transaction using the Ledger Stacks app.
-
-```json
-{"tx_hex": "00...", "derivation_path": "m/44'/5757'/0'/0/0", "interface": "hid"}
-```
-
----
-
-## Phase 5D: Inscription Creation & Onramp Tools
-
-#### `ord_create_inscription`
-
-Create a new Bitcoin inscription. Builds the Ordinals envelope with content type
-and data, estimates commit/reveal fees.
-
-```json
-{"content_type": "text/plain", "content": "Hello Ordinals!", "dry_run": true}
-```
-
-Also supports binary content (hex-encoded images, etc.):
-
-```json
-{"content_type": "image/png", "content": "89504e47...", "content_encoding": "hex", "dry_run": true}
-```
-
-#### `ord_create_repeat_inscriptions`
-
-Create multiple inscriptions in batch with shared fee estimation.
-
-```json
-{"content_type": "text/plain", "contents": ["one", "two", "three"], "dry_run": true}
-```
-
-#### `buy_get_providers`
-
-List available fiat-to-crypto onramp providers with supported currencies.
-
-```json
-{"crypto": "BTC", "fiat": "USD"}
-```
-
-#### `buy_get_quote`
-
-Get a fiat-to-crypto buy quote with live prices and estimated fees.
-
-```json
-{"crypto": "BTC", "fiat": "USD", "fiat_amount": 100}
-```
-
----
-
-## Cursor MCP config example
-
-Add to `.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "btc-wallet": {
-      "command": "mcp/btc_wallet/run_btc_wallet_mcp.sh"
-    }
-  }
-}
-```
-
-## Roadmap
-
-All 77 planned MCP tools are now implemented. See
-[LEATHER_XVERSE_MCP_PLAN.md](LEATHER_XVERSE_MCP_PLAN.md) for the full roadmap and
-feature mapping.

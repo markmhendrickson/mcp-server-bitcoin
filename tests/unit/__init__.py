@@ -1,1 +1,1 @@
-# Unit tests for btc_wallet MCP server.
+# Unit tests for bitcoin_wallet MCP server.

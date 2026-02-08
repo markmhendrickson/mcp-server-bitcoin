@@ -8,8 +8,8 @@ from unittest.mock import patch
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-import btc_wallet_mcp_server as server  # noqa: E402
-import btc_wallet  # noqa: E402
+import bitcoin_wallet_mcp_server as server  # noqa: E402
+import bitcoin_wallet  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_list_tools_count():
 
 def test_get_addresses_returns_all_types(monkeypatch):
     monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
-    monkeypatch.setattr(btc_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
+    monkeypatch.setattr(bitcoin_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
 
     response = asyncio.run(server._handle_get_addresses())
     payload = _parse(response)
@@ -130,10 +130,10 @@ def test_get_addresses_returns_all_types(monkeypatch):
 def test_get_accounts_returns_balances(monkeypatch):
     monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
     monkeypatch.setattr(
-        btc_wallet, "_fetch_mempool_utxos",
+        bitcoin_wallet, "_fetch_mempool_utxos",
         lambda addr, net: [{"value": 50000}] if "p2wpkh" in addr or "tb1q" in addr else [],
     )
-    monkeypatch.setattr(btc_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
+    monkeypatch.setattr(bitcoin_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
 
     response = asyncio.run(server._handle_get_accounts())
     payload = _parse(response)
@@ -276,7 +276,7 @@ def test_verify_message_missing_params():
 def test_get_fees(monkeypatch):
     monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
     monkeypatch.setattr(
-        btc_wallet, "_fetch_dynamic_fee_rate_sat_per_byte", lambda *a: 5
+        bitcoin_wallet, "_fetch_dynamic_fee_rate_sat_per_byte", lambda *a: 5
     )
 
     # Mock requests to avoid network calls

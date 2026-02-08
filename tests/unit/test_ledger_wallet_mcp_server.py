@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-import btc_wallet_mcp_server as server  # noqa: E402
+import bitcoin_wallet_mcp_server as server  # noqa: E402
 import ledger_wallet  # noqa: E402
 
 

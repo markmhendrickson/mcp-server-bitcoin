@@ -2,14 +2,15 @@
 DeFi, Swaps, sBTC Bridge, and Stacking operations for Phase 4 MCP support.
 
 Implements:
-- Swap quotes and execution via Alex, Bitflow, Velar DEX APIs
-- Supported swap pairs listing
+- Swap quotes and execution via Alex, Bitflow, and Velar DEX
+- Supported swap pairs listing (Alex pools, Bitflow ticker)
 - Swap history from Hiro activity API
 - sBTC bridge deposit/withdraw information
 - sBTC balance queries
 - Stacks stacking info, delegation, and revocation
 
-All swap execution goes through Stacks smart contract calls under the hood.
+Quote and pairs: Alex, Bitflow, and Velar. Execution: Alex only (Bitflow/Velar
+execute require protocol-specific contract calls not yet implemented).
 """
 
 from __future__ import annotations
@@ -35,6 +36,9 @@ STXNetwork = Literal["mainnet", "testnet"]
 # ---------------------------------------------------------------------------
 
 ALEX_API = "https://api.alexlab.co"
+BITFLOW_API = "https://bitflow-sdk-api-gateway-7owjsmt8.uc.gateway.dev"
+# Velar: no public REST pools/prices; we use Alex token prices for Velar quotes
+SUPPORTED_SWAP_PROTOCOLS = ["alex", "bitflow", "velar"]
 
 # Known sBTC contract (mainnet)
 SBTC_CONTRACT_MAINNET = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
@@ -49,25 +53,15 @@ POX_CONTRACT = "SP000000000000000000002Q6VF78.pox-4"
 # ---------------------------------------------------------------------------
 
 
-def swap_get_supported_pairs(cfg: STXConfig) -> dict[str, Any]:
-    """
-    List supported swap pairs and protocols.
-
-    Fetches available pools from Alex DEX.
-    """
+def _alex_pairs() -> list[dict[str, Any]]:
+    """Fetch Alex DEX pools and return list of pair dicts with protocol='alex'."""
     try:
         resp = requests.get(f"{ALEX_API}/v2/public/pools", timeout=10)
         resp.raise_for_status()
         data = resp.json()
         pools = data.get("data", data) if isinstance(data, dict) else data
-    except Exception as exc:
-        return {
-            "protocols": ["alex"],
-            "pairs": [],
-            "error": f"Failed to fetch pools: {exc}",
-            "network": cfg.network,
-        }
-
+    except Exception:
+        return []
     pairs = []
     if isinstance(pools, list):
         for p in pools:
@@ -78,15 +72,66 @@ def swap_get_supported_pairs(cfg: STXConfig) -> dict[str, Any]:
                     "pool_id": p.get("pool_id"),
                     "token_x": token_x,
                     "token_y": token_y,
+                    "protocol": "alex",
                     "apr_7d": p.get("apr_7d", 0),
                 })
+    return pairs
+
+
+def _bitflow_pairs() -> list[dict[str, Any]]:
+    """Fetch Bitflow ticker and return list of pair dicts with protocol='bitflow'."""
+    try:
+        resp = requests.get(f"{BITFLOW_API}/ticker", timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        tickers = data if isinstance(data, list) else data.get("data", data) or []
+    except Exception:
+        return []
+    pairs = []
+    if isinstance(tickers, list):
+        for t in tickers:
+            base = t.get("base_currency") or t.get("base")
+            target = t.get("target_currency") or t.get("target")
+            if base and target:
+                pairs.append({
+                    "pool_id": t.get("ticker_id") or f"{base}_{target}",
+                    "token_x": base,
+                    "token_y": target,
+                    "protocol": "bitflow",
+                    "last_price": t.get("last_price"),
+                })
+    return pairs
+
+
+def swap_get_supported_pairs(cfg: STXConfig) -> dict[str, Any]:
+    """
+    List supported swap pairs and protocols.
+
+    Fetches pools from Alex DEX and Bitflow ticker. Velar has no public REST
+    pool list; use alex or bitflow for pair discovery.
+    """
+    alex_pairs = _alex_pairs()
+    bitflow_pairs = _bitflow_pairs()
+    all_pairs = alex_pairs + bitflow_pairs
 
     return {
-        "protocols": ["alex"],
-        "pair_count": len(pairs),
-        "pairs": pairs[:100],  # cap output size
+        "protocols": SUPPORTED_SWAP_PROTOCOLS,
+        "pair_count": len(all_pairs),
+        "pairs": all_pairs[:150],
         "network": cfg.network,
     }
+
+
+WSTX_CONTRACT = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx"
+
+
+def _normalize_token_for_bitflow(token: str) -> str:
+    """Map STX / wstx to a form Bitflow ticker may use (e.g. 'STX')."""
+    if not token:
+        return token
+    if token.upper() == "STX" or token == WSTX_CONTRACT:
+        return "STX"
+    return token
 
 
 def swap_get_quote(
@@ -102,9 +147,24 @@ def swap_get_quote(
     - token_in: contract ID of the input token (or "STX" for native STX)
     - token_out: contract ID of the output token
     - amount: amount of token_in in smallest unit
+    - protocol: "alex" | "bitflow" | "velar"
 
-    Queries Alex DEX for price data and computes an estimated output.
+    Alex and Velar use Alex token prices; Bitflow uses Bitflow ticker last_price.
     """
+    protocol = (protocol or "alex").lower()
+    if protocol not in SUPPORTED_SWAP_PROTOCOLS:
+        raise ValueError(f"Unsupported protocol: {protocol}. Use one of: {SUPPORTED_SWAP_PROTOCOLS}")
+
+    if protocol == "bitflow":
+        return _swap_get_quote_bitflow(cfg, token_in, token_out, amount)
+    # alex and velar: use Alex token prices (Velar shares same Stacks tokens)
+    return _swap_get_quote_alex_velar(cfg, token_in, token_out, amount, protocol)
+
+
+def _swap_get_quote_alex_velar(
+    cfg: STXConfig, token_in: str, token_out: str, amount: int, protocol: str
+) -> dict[str, Any]:
+    """Quote using Alex token prices (used for alex and velar)."""
     try:
         resp = requests.get(f"{ALEX_API}/v2/public/token-prices", timeout=10)
         resp.raise_for_status()
@@ -112,7 +172,6 @@ def swap_get_quote(
     except Exception as exc:
         raise RuntimeError(f"Failed to fetch token prices: {exc}") from exc
 
-    # Build price lookup
     prices: dict[str, float] = {}
     for item in price_data:
         cid = item.get("contract_id", "")
@@ -120,14 +179,13 @@ def swap_get_quote(
         if cid and price:
             prices[cid] = float(price)
 
-    # Handle STX specially
+    wstx = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx"
     if token_in.upper() == "STX":
-        token_in_price = prices.get("SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx", 0)
+        token_in_price = prices.get(wstx, 0)
     else:
         token_in_price = prices.get(token_in, 0)
-
     if token_out.upper() == "STX":
-        token_out_price = prices.get("SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wstx", 0)
+        token_out_price = prices.get(wstx, 0)
     else:
         token_out_price = prices.get(token_out, 0)
 
@@ -136,10 +194,8 @@ def swap_get_quote(
     if token_out_price <= 0:
         raise RuntimeError(f"No price data available for output token: {token_out}")
 
-    # Estimate output amount
     value_usd = amount * token_in_price
     estimated_output = value_usd / token_out_price
-    # Apply a conservative 0.3% fee + 1% slippage estimate
     fee_pct = 0.003
     slippage_pct = 0.01
     estimated_output_after_fees = estimated_output * (1 - fee_pct - slippage_pct)
@@ -160,6 +216,63 @@ def swap_get_quote(
     }
 
 
+def _swap_get_quote_bitflow(
+    cfg: STXConfig, token_in: str, token_out: str, amount: int
+) -> dict[str, Any]:
+    """Quote using Bitflow ticker (last_price is target per base)."""
+    try:
+        resp = requests.get(f"{BITFLOW_API}/ticker", timeout=10)
+        resp.raise_for_status()
+        tickers = resp.json()
+        if not isinstance(tickers, list):
+            tickers = tickers.get("data", tickers) or []
+    except Exception as exc:
+        raise RuntimeError(f"Failed to fetch Bitflow ticker: {exc}") from exc
+
+    a_in = _normalize_token_for_bitflow(token_in)
+    a_out = _normalize_token_for_bitflow(token_out)
+
+    for t in tickers:
+        base = (t.get("base_currency") or t.get("base") or "").strip()
+        target = (t.get("target_currency") or t.get("target") or "").strip()
+        if not base or not target:
+            continue
+        last = t.get("last_price")
+        if last is None:
+            continue
+        try:
+            rate = float(last)
+        except (TypeError, ValueError):
+            continue
+        # Match (token_in, token_out) to (base, target) or (target, base)
+        if (base == a_in and target == a_out) or (base == token_in and target == token_out):
+            estimated_output = amount * rate
+        elif (base == a_out and target == a_in) or (base == token_out and target == token_in):
+            estimated_output = amount / rate if rate else 0
+        else:
+            continue
+        fee_pct = 0.003
+        slippage_pct = 0.01
+        estimated_output_after_fees = int(estimated_output * (1 - fee_pct - slippage_pct))
+        return {
+            "token_in": token_in,
+            "token_out": token_out,
+            "amount_in": amount,
+            "token_in_price_usd": None,
+            "token_out_price_usd": None,
+            "estimated_output": estimated_output_after_fees,
+            "estimated_output_before_fees": int(estimated_output),
+            "exchange_rate": rate if (base == a_in or base == token_in) else 1.0 / rate,
+            "fee_pct": fee_pct,
+            "slippage_pct": slippage_pct,
+            "protocol": "bitflow",
+            "network": cfg.network,
+        }
+    raise RuntimeError(
+        f"No Bitflow ticker found for pair {token_in} / {token_out}. Try protocol=alex or protocol=velar."
+    )
+
+
 def swap_execute(
     cfg: STXConfig,
     token_in: str,
@@ -172,34 +285,36 @@ def swap_execute(
     """
     Execute a swap via DEX smart contract call.
 
-    For Alex DEX, this calls the swap contract with the appropriate parameters.
-    The actual routing depends on available pools.
+    Only protocol=alex is supported for execution. Bitflow and Velar are
+    supported for quotes and pair listing only; use protocol=alex to execute.
     """
+    protocol = (protocol or "alex").lower()
+    if protocol not in ("alex",):
+        return {
+            "ok": False,
+            "error": f"Execution is only supported for protocol=alex. Got protocol={protocol}. Use swap_get_quote with protocol={protocol} for a quote, then execute with protocol=alex.",
+            "protocol": protocol,
+            "network": cfg.network,
+        }
     if dry_run is None:
         dry_run = cfg.dry_run_default
 
-    # Get a quote first
-    quote = swap_get_quote(cfg, token_in, token_out, amount, protocol)
+    quote = swap_get_quote(cfg, token_in, token_out, amount, "alex")
     estimated_output = quote["estimated_output"]
     if min_output is None:
-        min_output = int(estimated_output * 0.95)  # 5% slippage tolerance
+        min_output = int(estimated_output * 0.95)
 
-    # For Alex DEX, swaps go through contract calls
-    # The main swap router is at SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-pool-v2-01
     alex_router = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM"
     alex_contract = "amm-pool-v2-01"
+    in_asset = f"'{alex_router}.token-wstx" if token_in.upper() == "STX" else f"'{token_in}"
+    out_asset = f"'{alex_router}.token-wstx" if token_out.upper() == "STX" else f"'{token_out}"
 
     result = stx_call_contract(
         cfg,
         contract_address=alex_router,
         contract_name=alex_contract,
         function_name="swap-helper",
-        function_args=[
-            f"'{token_in}" if not token_in.upper() == "STX" else f"'{alex_router}.token-wstx",
-            f"'{token_out}" if not token_out.upper() == "STX" else f"'{alex_router}.token-wstx",
-            f"u{amount}",
-            f"u{min_output}",
-        ],
+        function_args=[in_asset, out_asset, f"u{amount}", f"u{min_output}"],
         dry_run=dry_run,
     )
 
@@ -209,7 +324,7 @@ def swap_execute(
         "amount_in": amount,
         "estimated_output": estimated_output,
         "min_output": min_output,
-        "protocol": protocol,
+        "protocol": "alex",
     }
     return result
 

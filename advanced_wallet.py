@@ -18,7 +18,7 @@ from typing import Any, Literal
 
 import requests
 
-from btc_wallet import (
+from bitcoin_wallet import (
     BTCConfig,
     _broadcast_raw_tx,
     _build_native_segwit_tx_multi,

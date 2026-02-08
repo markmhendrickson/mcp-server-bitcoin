@@ -49,6 +49,7 @@ try:
         OP_DUP,
         OP_EQUALVERIFY,
         OP_HASH160,
+        OP_RETURN,
         SIGHASH_ALL,
         CScriptWitness,
         SignatureHash,
@@ -460,12 +461,15 @@ def _build_native_segwit_tx(
     fee_sats: int,
     change_address: str,
     network: BTCCNetwork,
+    memo: str | None = None,
 ) -> str:
     """
     Build and sign a native SegWit (P2WPKH) transaction using python-bitcoinlib.
 
     Uses CMutableTransaction for proper witness construction.
     Based on python-bitcoinlib best practices and BIP143 (SegWit signing).
+    
+    memo: Optional UTF-8 memo added as OP_RETURN output (max 80 bytes).
     """
     # Set network params
     if network == "mainnet":
@@ -508,6 +512,13 @@ def _build_native_segwit_tx(
     # Recipient output
     to_addr = CBitcoinAddress(to_address)
     txouts.append(CMutableTxOut(amount_sats, to_addr.to_scriptPubKey()))
+    
+    # OP_RETURN memo output (if provided)
+    if memo:
+        memo_bytes = memo.encode("utf-8")[:80]  # Max 80 bytes for OP_RETURN
+        op_return_script = CScript([OP_RETURN, memo_bytes])
+        txouts.append(CMutableTxOut(0, op_return_script))
+    
     # Change output (if above dust threshold)
     if change_sats > 546:
         change_addr = CBitcoinAddress(change_address)
@@ -657,6 +668,7 @@ def send_transaction(
             fee_sats=int(estimated_fee_sats),
             change_address=change_address,
             network=cfg.network,
+            memo=memo,
         )
     else:
         # For other address types (P2PKH, P2SH-SegWit), use bit library
@@ -917,6 +929,7 @@ def get_accounts(cfg: BTCConfig) -> list[dict[str, Any]]:
     Return account information with balances across all address types.
 
     Uses mempool.space to fetch balance per address.
+    Includes confirmed, unconfirmed, and total balance breakdown.
     """
     candidates = cfg.candidate_wifs or []
     accounts: list[dict[str, Any]] = []
@@ -926,14 +939,33 @@ def get_accounts(cfg: BTCConfig) -> list[dict[str, Any]]:
             key = _make_key_from_wif(c["wif"], cfg.network)
             addr = key.address
         utxos = _fetch_mempool_utxos(addr, cfg.network)
-        total_sats = sum(int(u.get("value", 0)) for u in utxos)
+        
+        # Split by confirmed vs unconfirmed
+        confirmed_sats = 0
+        unconfirmed_sats = 0
+        for u in utxos:
+            value = int(u.get("value", 0))
+            status = u.get("status", {}) or {}
+            if status.get("confirmed", False):
+                confirmed_sats += value
+            else:
+                unconfirmed_sats += value
+        
+        total_sats = confirmed_sats + unconfirmed_sats
         balance_btc = Decimal(total_sats) / Decimal("1e8")
+        confirmed_btc = Decimal(confirmed_sats) / Decimal("1e8")
+        unconfirmed_btc = Decimal(unconfirmed_sats) / Decimal("1e8")
+        
         accounts.append(
             {
                 "type": c.get("addr_type", "unknown"),
                 "address": addr,
                 "balance_sats": total_sats,
                 "balance_btc": str(balance_btc),
+                "confirmed_sats": confirmed_sats,
+                "confirmed_btc": str(confirmed_btc),
+                "unconfirmed_sats": unconfirmed_sats,
+                "unconfirmed_btc": str(unconfirmed_btc),
                 "utxo_count": len(utxos),
                 "label": c.get("label", ""),
             }
@@ -1063,6 +1095,7 @@ def send_transfer_multi(
             fee_sats=int(estimated_fee_sats),
             change_address=display_address,
             network=cfg.network,
+            memo=memo,
         )
     else:
         # Use bit library for other address types
@@ -1881,11 +1914,14 @@ def _build_native_segwit_tx_multi(
     fee_sats: int,
     change_address: str,
     network: BTCCNetwork,
+    memo: str | None = None,
 ) -> str:
     """
     Build and sign a native SegWit (P2WPKH) transaction with multiple outputs.
 
     Extension of _build_native_segwit_tx for multi-recipient support.
+    
+    memo: Optional UTF-8 memo added as OP_RETURN output (max 80 bytes).
     """
     if SelectParams is None:
         raise RuntimeError("python-bitcoinlib is required but not installed.")
@@ -1926,6 +1962,13 @@ def _build_native_segwit_tx_multi(
     for r in recipients:
         to_addr = CBitcoinAddress(r["address"])
         txouts.append(CMutableTxOut(int(r["amount_sats"]), to_addr.to_scriptPubKey()))
+    
+    # OP_RETURN memo output (if provided)
+    if memo:
+        memo_bytes = memo.encode("utf-8")[:80]  # Max 80 bytes for OP_RETURN
+        op_return_script = CScript([OP_RETURN, memo_bytes])
+        txouts.append(CMutableTxOut(0, op_return_script))
+    
     if change_sats > 546:
         change_addr = CBitcoinAddress(change_address)
         txouts.append(CMutableTxOut(change_sats, change_addr.to_scriptPubKey()))

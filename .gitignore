@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# Foundation local overrides (see foundation README)
+foundation-config.local.yaml
+
 # Python
 __pycache__/
 *.py[cod]
