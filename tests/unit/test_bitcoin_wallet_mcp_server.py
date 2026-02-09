@@ -96,7 +96,7 @@ def test_list_tools_includes_all_phase1_tools():
 
 
 def test_list_tools_count():
-    """All phases: 19 BTC + 21 STX (incl stacking) + 7 ORD + 4 SWAP + 3 SBTC = 54."""
+    """All phases: 19 BTC + 36 STX (21 original + 15 Phase 6) + 9 ORD + 4 SWAP + 3 SBTC + others = 93."""
     tools = asyncio.run(server.list_tools())
     btc_count = sum(1 for t in tools if t.name.startswith("btc_"))
     stx_count = sum(1 for t in tools if t.name.startswith("stx_"))
@@ -104,11 +104,11 @@ def test_list_tools_count():
     swap_count = sum(1 for t in tools if t.name.startswith("swap_"))
     sbtc_count = sum(1 for t in tools if t.name.startswith("sbtc_"))
     assert btc_count == 19
-    assert stx_count == 21  # 18 original + 3 stacking
+    assert stx_count == 36  # 21 original + 15 Phase 6 Hiro API integration
     assert ord_count == 9  # 7 Phase 3 + 2 Phase 5D inscription creation
     assert swap_count == 4
     assert sbtc_count == 3
-    assert len(tools) == 77
+    assert len(tools) == 93
 
 
 def test_get_addresses_returns_all_types(monkeypatch):

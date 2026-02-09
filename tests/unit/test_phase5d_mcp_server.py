@@ -53,7 +53,7 @@ def test_5d_tools_present():
 
 def test_total_tool_count():
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 77
+    assert len(tools) == 93
 
 
 # ---------------------------------------------------------------------------

@@ -385,6 +385,7 @@ class TransactionPreview:
     to_address: str
     amount_btc: Decimal
     fee_sats_estimate: int
+    fee_rate_sat_per_vb: int
     total_spend_btc: Decimal
     balance_btc: Decimal
     network: BTCCNetwork
@@ -432,6 +433,7 @@ def build_transaction_preview(
         display_address,
         _,
         _,
+        fee_rate,
     ) = _select_best_key_for_payment(cfg, amount_btc)
     fee_btc_estimate = Decimal(fee_sats_estimate) / Decimal("1e8")
     total_spend = amount_btc + fee_btc_estimate
@@ -447,6 +449,7 @@ def build_transaction_preview(
         to_address=to_address,
         amount_btc=amount_btc,
         fee_sats_estimate=fee_sats_estimate,
+        fee_rate_sat_per_vb=fee_rate,
         total_spend_btc=total_spend,
         balance_btc=balance_btc,
         network=cfg.network,
@@ -576,7 +579,7 @@ def send_transaction(
     if dry_run is None:
         dry_run = cfg.dry_run_default
     # Re-select the best key and UTXOs at send time in case conditions changed.
-    key, _, _, display_address, mempool_utxos, addr_type = _select_best_key_for_payment(
+    key, _, _, display_address, mempool_utxos, addr_type, _ = _select_best_key_for_payment(
         cfg, amount_btc
     )
 
@@ -595,11 +598,12 @@ def send_transaction(
             cfg.network, cfg.fee_rate_sat_per_byte, cfg.fee_tier
         )
 
-    # Estimate fee: rough size estimate (10 base + inputs * vsize + outputs * 34)
-    # Start with a conservative estimate, then refine
-    estimated_inputs = max(1, len(mempool_utxos))
-    estimated_size = 10 + estimated_inputs * (68 if segwit else 148) + 2 * 34
-    estimated_fee_sats = estimated_size * fee_rate
+    # Estimate fee using minimum inputs needed (greedy), not all UTXOs.
+    amount_btc = Decimal(amount_sats) / Decimal("1e8")
+    input_vsize = 68 if segwit else 148
+    _, estimated_fee_sats = _estimate_inputs_and_fee(
+        mempool_utxos, amount_btc, fee_rate, input_vsize, 2
+    )
     total_needed_sats = amount_sats + estimated_fee_sats
 
     # Select UTXOs greedily until we have enough
@@ -610,6 +614,10 @@ def send_transaction(
             break
         selected_utxos.append(u)
         total_selected += int(u.get("value", 0))
+
+    # Recompute fee for actual number of inputs (may be 1 more than estimate if rounding)
+    estimated_size = 10 + len(selected_utxos) * input_vsize + 2 * 34
+    estimated_fee_sats = estimated_size * fee_rate
 
     if total_selected < total_needed_sats:
         raise RuntimeError(
@@ -691,10 +699,18 @@ def send_transaction(
         # raw_hex is a hex string, convert to bytes for hashing
         tx_bytes = bytes.fromhex(raw_hex) if isinstance(raw_hex, str) else raw_hex
         fake_txid = hashlib.sha256(tx_bytes).hexdigest()
-        return f"DRYRUN_{fake_txid[:64]}"
+        return {
+            "txid": f"DRYRUN_{fake_txid[:64]}",
+            "fee_rate_sat_per_vb": fee_rate,
+            "fee_sats_estimate": int(estimated_fee_sats),
+        }
     
     txid = _broadcast_raw_tx(raw_hex, cfg.network)
-    return txid
+    return {
+        "txid": txid,
+        "fee_rate_sat_per_vb": fee_rate,
+        "fee_sats_estimate": int(estimated_fee_sats),
+    }
 
 
 def _fetch_dynamic_fee_rate_sat_per_byte(
@@ -763,6 +779,35 @@ def _fetch_btc_prices() -> tuple[Decimal, Decimal]:
         return (Decimal("0"), Decimal("0"))
 
 
+def _estimate_inputs_and_fee(
+    utxos: list[dict[str, object]],
+    amount_btc: Decimal,
+    fee_rate: int,
+    input_vsize: int,
+    num_outputs: int,
+) -> tuple[int, int]:
+    """
+    Minimum number of inputs needed to cover amount_btc and the fee for that many
+    inputs, and the corresponding fee in satoshis. Uses greedy selection (largest
+    UTXOs first) so we don't assume all UTXOs are spent (which inflated fee estimates).
+    """
+    amount_sats = int(amount_btc * Decimal("1e8"))
+    sorted_utxos = sorted(utxos, key=lambda u: int(u.get("value", 0)), reverse=True)
+    base_size = 10 + num_outputs * 34
+
+    for n in range(1, len(sorted_utxos) + 1):
+        size_vb = base_size + n * input_vsize
+        fee_sats = size_vb * fee_rate
+        total_needed_sats = amount_sats + fee_sats
+        selected_sum = sum(int(u.get("value", 0)) for u in sorted_utxos[:n])
+        if selected_sum >= total_needed_sats:
+            return (n, fee_sats)
+    # Fallback: use all UTXOs and fee for that
+    n = len(sorted_utxos)
+    size_vb = base_size + n * input_vsize
+    return (n, size_vb * fee_rate)
+
+
 def _select_best_key_for_payment(
     cfg: BTCConfig,
     amount_btc: Decimal,
@@ -774,7 +819,7 @@ def _select_best_key_for_payment(
     Balances and UTXOs are sourced from mempool.space; the selected key is
     then instantiated via `bit` only for signing/broadcast.
 
-    Returns: (key, balance_btc, fee_sats_estimate, display_address, utxos, addr_type)
+    Returns: (key, balance_btc, fee_sats_estimate, display_address, utxos, addr_type, fee_rate)
     """
     candidates = cfg.candidate_wifs or [
         {"label": "primary", "addr_type": "unknown", "wif": cfg.private_key_wif}
@@ -808,10 +853,13 @@ def _select_best_key_for_payment(
         total_sats = sum(int(u.get("value", 0)) for u in utxos)
         balance_btc = Decimal(total_sats) / Decimal("1e8")
 
-        num_inputs = max(len(utxos), 1)
+        # SegWit (P2WPKH, P2SH-P2WPKH) input ~68 vB; legacy (P2PKH) ~148 vB.
+        addr_type = info.get("addr_type", "unknown")
+        input_vsize = 68 if addr_type in ("p2wpkh", "p2sh-p2wpkh") else 148
         num_outputs = 2  # recipient + change
-        size_bytes = 10 + num_inputs * 148 + num_outputs * 34
-        fee_sats_estimate = size_bytes * fee_rate
+        num_inputs, fee_sats_estimate = _estimate_inputs_and_fee(
+            utxos, amount_btc, fee_rate, input_vsize, num_outputs
+        )
         fee_btc_estimate = Decimal(fee_sats_estimate) / Decimal("1e8")
         total_spend = amount_btc + fee_btc_estimate
 
@@ -831,7 +879,7 @@ def _select_best_key_for_payment(
     key = _make_key_from_wif(info["wif"], cfg.network)
     display_address = info.get("address") or key.address
     addr_type = info.get("addr_type", "unknown")
-    return key, balance_btc, fee_sats_estimate, display_address, utxos, addr_type
+    return key, balance_btc, fee_sats_estimate, display_address, utxos, addr_type, fee_rate
 
 
 def _fetch_mempool_utxos(address: str, network: BTCCNetwork) -> list[dict[str, object]]:

@@ -287,6 +287,10 @@ def swap_execute(
 
     Only protocol=alex is supported for execution. Bitflow and Velar are
     supported for quotes and pair listing only; use protocol=alex to execute.
+
+    Future execution support: Velar exposes contract-call params via
+    @velarprotocol/velar-sdk (swap() returns contract, function, args); Bitflow
+    has no public swap-build API (only ticker); contact Bitflow for SDK/API.
     """
     protocol = (protocol or "alex").lower()
     if protocol not in ("alex",):
@@ -498,6 +502,8 @@ def stx_get_stacking_info(cfg: STXConfig) -> dict[str, Any]:
     Get current stacking status and PoX cycle information.
 
     Queries the Hiro PoX endpoint and the wallet's stacking state.
+    Enhanced with cycle progress, estimated end date, participation rate,
+    and recent cycle history.
     """
     # Global PoX info
     try:
@@ -516,13 +522,46 @@ def stx_get_stacking_info(cfg: STXConfig) -> dict[str, Any]:
     except Exception:
         stacker_info = {}
 
+    # Calculate enhanced cycle metrics
+    reward_phase_length = pox_data.get("reward_phase_block_length", 0)
+    prepare_phase_length = pox_data.get("prepare_phase_block_length", 0)
+    total_cycle_length = reward_phase_length + prepare_phase_length
+
+    current_burn_height = pox_data.get("current_burnchain_block_height", 0)
+    first_burnchain_block_height = pox_data.get("first_burnchain_block_height", 0)
+
+    # Calculate blocks into current cycle and progress
+    blocks_into_cycle = 0
+    percent_complete = 0.0
+    blocks_remaining = 0
+    estimated_minutes_remaining = 0
+
+    if total_cycle_length > 0 and current_burn_height > 0 and first_burnchain_block_height > 0:
+        blocks_since_start = current_burn_height - first_burnchain_block_height
+        blocks_into_cycle = blocks_since_start % total_cycle_length
+        percent_complete = round((blocks_into_cycle / total_cycle_length) * 100, 2)
+        blocks_remaining = total_cycle_length - blocks_into_cycle
+        # Bitcoin averages ~10 minutes per block
+        estimated_minutes_remaining = blocks_remaining * 10
+
+    # Participation rate
+    total_liquid_supply = pox_data.get("total_liquid_supply_ustx", 0)
+    stacked_ustx = current_cycle.get("stacked_ustx", 0)
+    participation_rate = 0.0
+    if total_liquid_supply > 0:
+        participation_rate = round((stacked_ustx / total_liquid_supply) * 100, 2)
+
     return {
         "pox_contract": pox_data.get("contract_id", ""),
         "current_cycle": {
             "id": current_cycle.get("id"),
             "min_threshold_ustx": current_cycle.get("min_threshold_ustx", 0),
-            "stacked_ustx": current_cycle.get("stacked_ustx", 0),
+            "stacked_ustx": stacked_ustx,
             "is_pox_active": current_cycle.get("is_pox_active", False),
+            "blocks_into_cycle": blocks_into_cycle,
+            "blocks_remaining": blocks_remaining,
+            "percent_complete": percent_complete,
+            "estimated_minutes_remaining": estimated_minutes_remaining,
         },
         "next_cycle": {
             "id": next_cycle.get("id"),
@@ -530,10 +569,12 @@ def stx_get_stacking_info(cfg: STXConfig) -> dict[str, Any]:
             "stacked_ustx": next_cycle.get("stacked_ustx", 0),
             "blocks_until_prepare_phase": next_cycle.get("blocks_until_prepare_phase"),
         },
-        "reward_phase_block_length": pox_data.get("reward_phase_block_length"),
-        "prepare_phase_block_length": pox_data.get("prepare_phase_block_length"),
-        "current_burnchain_block_height": pox_data.get("current_burnchain_block_height"),
-        "total_liquid_supply_ustx": pox_data.get("total_liquid_supply_ustx"),
+        "reward_phase_block_length": reward_phase_length,
+        "prepare_phase_block_length": prepare_phase_length,
+        "total_cycle_length": total_cycle_length,
+        "current_burnchain_block_height": current_burn_height,
+        "total_liquid_supply_ustx": total_liquid_supply,
+        "participation_rate_percent": participation_rate,
         "wallet_stacking": stacker_info if stacker_info else None,
         "address": cfg.stx_address,
         "network": cfg.network,

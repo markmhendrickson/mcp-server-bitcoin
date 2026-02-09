@@ -66,11 +66,16 @@ from inscribe_onramp_wallet import (
 
 from ledger_wallet import (
     ledger_get_addresses,
+    ledger_get_stx_addresses,
     ledger_sign_psbt,
     ledger_sign_stx_transaction,
 )
 
 from advanced_wallet import (
+    stx_get_network_info,
+    stx_get_network_status,
+    stx_query_transactions,
+    stx_query_transactions_by_contract,
     tx_cancel,
     tx_get_history,
     tx_get_status,
@@ -79,6 +84,29 @@ from advanced_wallet import (
     wallet_get_network,
     wallet_get_supported_methods,
     wallet_switch_network,
+)
+
+from stx_mempool import (
+    stx_mempool_get_dropped,
+    stx_mempool_get_stats,
+    stx_mempool_list_pending,
+)
+
+from stx_explorer import (
+    stx_get_block_by_hash,
+    stx_get_block_by_height,
+    stx_get_recent_blocks,
+    stx_get_stacks_blocks_for_bitcoin_block,
+)
+
+from stx_events import (
+    stx_get_address_asset_events,
+    stx_get_contract_events,
+)
+
+from stx_token_metadata import (
+    stx_get_token_holders,
+    stx_get_token_metadata,
 )
 
 from bns_market_wallet import (
@@ -1024,7 +1052,8 @@ async def list_tools() -> List[Tool]:
             name="swap_execute",
             description=(
                 "Execute a token swap via DEX smart contract call. "
-                "Only protocol=alex is supported for execution; use protocol=alex (default)."
+                "Supported for protocol=alex (default). Bitflow and Velar are supported for quotes and pair discovery; "
+                "execution for them could be added via protocol SDKs (e.g. Velar SDK returns contract-call params)."
             ),
             inputSchema={
                 "type": "object",
@@ -1365,6 +1394,28 @@ async def list_tools() -> List[Tool]:
             },
         ),
         Tool(
+            name="ledger_get_stx_addresses",
+            description=(
+                "Get Stacks addresses from a connected Ledger device. "
+                "Requires Ledger connected via USB with the Stacks app open."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "account": {"type": "integer", "description": "Account index (default: 0)"},
+                    "display": {
+                        "type": "boolean",
+                        "description": "If true, display address on device for verification",
+                    },
+                    "interface": {
+                        "type": "string",
+                        "enum": ["hid", "tcp"],
+                        "description": "Connection: 'hid' for USB, 'tcp' for Speculos emulator (default: hid)",
+                    },
+                },
+            },
+        ),
+        Tool(
             name="ledger_sign_stx_transaction",
             description=(
                 "Sign a Stacks transaction using the Ledger Stacks app. "
@@ -1478,6 +1529,215 @@ async def list_tools() -> List[Tool]:
                     "fiat_amount": {"type": "number", "description": "Fiat amount to spend (default: 100)"},
                 },
             },
+        ),
+        # ===================================================================
+        # Phase 6: Hiro API Enhanced Integration
+        # ===================================================================
+        # -- 6.1 Enhanced Transaction Queries --
+        Tool(
+            name="stx_query_transactions",
+            description=(
+                "Query Stacks transactions for an address with advanced filtering. "
+                "Filter by transaction type and include mempool transactions."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "description": "Stacks address (default: wallet address)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "tx_type": {
+                        "type": "string",
+                        "enum": ["token_transfer", "contract_call", "smart_contract", "coinbase", "poison_microblock"],
+                        "description": "Filter by transaction type",
+                    },
+                    "unanchored": {"type": "boolean", "description": "Include mempool/unconfirmed transactions (default: false)"},
+                },
+            },
+        ),
+        Tool(
+            name="stx_query_transactions_by_contract",
+            description=(
+                "Query transactions that interacted with a specific smart contract. "
+                "Optionally filter by called function name."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_id": {"type": "string", "description": "Contract ID (e.g. SP...address.contract-name)"},
+                    "function_name": {"type": "string", "description": "Filter by function name (optional)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+                "required": ["contract_id"],
+            },
+        ),
+        # -- 6.2 Mempool Operations --
+        Tool(
+            name="stx_mempool_list_pending",
+            description=(
+                "List pending mempool transactions. "
+                "Optionally filter by address for address-specific pending txs."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "description": "Stacks address to filter by (optional, omit for global mempool)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+            },
+        ),
+        Tool(
+            name="stx_mempool_get_stats",
+            description=(
+                "Get Stacks mempool statistics including transaction counts by type, "
+                "fee averages, ages, and byte sizes."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_mempool_get_dropped",
+            description=(
+                "Get recently dropped mempool transactions. "
+                "These were in the mempool but removed without being mined."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+            },
+        ),
+        # -- 6.3 Block Explorer --
+        Tool(
+            name="stx_get_recent_blocks",
+            description="Get recent Stacks blocks with metadata.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Number of blocks (default: 20)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+            },
+        ),
+        Tool(
+            name="stx_get_block_by_height",
+            description="Get a specific Stacks block by its height.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "height": {"type": "integer", "description": "Block height"},
+                },
+                "required": ["height"],
+            },
+        ),
+        Tool(
+            name="stx_get_block_by_hash",
+            description="Get a specific Stacks block by its hash.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "block_hash": {"type": "string", "description": "Block hash (with or without 0x prefix)"},
+                },
+                "required": ["block_hash"],
+            },
+        ),
+        Tool(
+            name="stx_get_stacks_blocks_for_bitcoin_block",
+            description=(
+                "Get all Stacks blocks produced during a specific Bitcoin block. "
+                "Maps Bitcoin block height to corresponding Stacks blocks."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "bitcoin_height": {"type": "integer", "description": "Bitcoin block height"},
+                    "limit": {"type": "integer", "description": "Max results (default: 20)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+                "required": ["bitcoin_height"],
+            },
+        ),
+        # -- 6.4 Contract Event Monitoring --
+        Tool(
+            name="stx_get_contract_events",
+            description=(
+                "Get event history for a smart contract. "
+                "Returns print events, FT/NFT events, and STX events."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_id": {"type": "string", "description": "Contract ID (e.g. SP...address.contract-name)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+                "required": ["contract_id"],
+            },
+        ),
+        Tool(
+            name="stx_get_address_asset_events",
+            description=(
+                "Get asset events for an address. "
+                "Returns FT transfers, NFT transfers, and STX transfers."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "address": {"type": "string", "description": "Stacks address (default: wallet address)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+            },
+        ),
+        # -- 6.5 Token Metadata --
+        Tool(
+            name="stx_get_token_metadata",
+            description=(
+                "Get metadata for a SIP-10 fungible or SIP-9 non-fungible token. "
+                "Returns name, symbol, decimals, total supply, description, and image."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_id": {"type": "string", "description": "Token contract ID (e.g. SP...address.contract-name)"},
+                    "token_type": {
+                        "type": "string",
+                        "enum": ["ft", "nft"],
+                        "description": "Token type: ft (fungible) or nft (non-fungible). Default: ft",
+                    },
+                },
+                "required": ["contract_id"],
+            },
+        ),
+        Tool(
+            name="stx_get_token_holders",
+            description="Get holder addresses and balances for a fungible token.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "contract_id": {"type": "string", "description": "Token contract ID (e.g. SP...address.contract-name)"},
+                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
+                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                },
+                "required": ["contract_id"],
+            },
+        ),
+        # -- 6.6 Network Statistics & Health --
+        Tool(
+            name="stx_get_network_info",
+            description=(
+                "Get core Stacks network information including peer version, "
+                "burn block height, server version, and chain tip."
+            ),
+            inputSchema={"type": "object", "properties": {}},
+        ),
+        Tool(
+            name="stx_get_network_status",
+            description="Get Stacks blockchain sync status and chain tip details.",
+            inputSchema={"type": "object", "properties": {}},
         ),
     ]
 
@@ -1686,6 +1946,8 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_ledger_get_addresses(arguments)
         if name == "ledger_sign_psbt":
             return await _handle_ledger_sign_psbt(arguments)
+        if name == "ledger_get_stx_addresses":
+            return await _handle_ledger_get_stx_addresses(arguments)
         if name == "ledger_sign_stx_transaction":
             return await _handle_ledger_sign_stx_transaction(arguments)
 
@@ -1700,6 +1962,52 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             return await _handle_buy_get_providers(arguments)
         if name == "buy_get_quote":
             return await _handle_buy_get_quote(arguments)
+
+        # =================================================================
+        # Phase 6: Hiro API Enhanced Integration
+        # =================================================================
+
+        # 6.1 Enhanced Transaction Queries
+        if name == "stx_query_transactions":
+            return await _handle_stx_query_transactions(arguments)
+        if name == "stx_query_transactions_by_contract":
+            return await _handle_stx_query_transactions_by_contract(arguments)
+
+        # 6.2 Mempool Operations
+        if name == "stx_mempool_list_pending":
+            return await _handle_stx_mempool_list_pending(arguments)
+        if name == "stx_mempool_get_stats":
+            return await _handle_stx_mempool_get_stats()
+        if name == "stx_mempool_get_dropped":
+            return await _handle_stx_mempool_get_dropped(arguments)
+
+        # 6.3 Block Explorer
+        if name == "stx_get_recent_blocks":
+            return await _handle_stx_get_recent_blocks(arguments)
+        if name == "stx_get_block_by_height":
+            return await _handle_stx_get_block_by_height(arguments)
+        if name == "stx_get_block_by_hash":
+            return await _handle_stx_get_block_by_hash(arguments)
+        if name == "stx_get_stacks_blocks_for_bitcoin_block":
+            return await _handle_stx_get_stacks_blocks_for_bitcoin_block(arguments)
+
+        # 6.4 Contract Event Monitoring
+        if name == "stx_get_contract_events":
+            return await _handle_stx_get_contract_events(arguments)
+        if name == "stx_get_address_asset_events":
+            return await _handle_stx_get_address_asset_events(arguments)
+
+        # 6.5 Token Metadata
+        if name == "stx_get_token_metadata":
+            return await _handle_stx_get_token_metadata(arguments)
+        if name == "stx_get_token_holders":
+            return await _handle_stx_get_token_holders(arguments)
+
+        # 6.6 Network Statistics & Health
+        if name == "stx_get_network_info":
+            return await _handle_stx_get_network_info()
+        if name == "stx_get_network_status":
+            return await _handle_stx_get_network_status()
 
     except Exception as exc:  # noqa: BLE001
         return _error_response(str(exc))
@@ -1795,13 +2103,22 @@ async def _handle_preview_transfer(arguments: dict[str, Any]) -> List[TextConten
         preview = await asyncio.to_thread(
             build_transaction_preview, cfg, to_address, amount_btc
         )
+        usd_price, eur_price = await asyncio.to_thread(_fetch_btc_prices)
+        fee_btc = Decimal(preview.fee_sats_estimate) / Decimal("1e8")
         result = {
             "success": True,
             "from_address": preview.from_address,
             "to_address": preview.to_address,
             "amount_btc": str(preview.amount_btc),
+            "amount_usd": float(preview.amount_btc * usd_price),
+            "amount_eur": float(preview.amount_btc * eur_price),
             "fee_sats_estimate": preview.fee_sats_estimate,
+            "fee_rate_sat_per_vb": preview.fee_rate_sat_per_vb,
+            "fee_usd": float(fee_btc * usd_price),
+            "fee_eur": float(fee_btc * eur_price),
             "total_spend_btc": str(preview.total_spend_btc),
+            "total_spend_usd": float(preview.total_spend_btc * usd_price),
+            "total_spend_eur": float(preview.total_spend_btc * eur_price),
             "balance_btc": str(preview.balance_btc),
             "network": preview.network,
         }
@@ -1828,7 +2145,7 @@ async def _handle_send_transfer(arguments: dict[str, Any]) -> List[TextContent]:
         if dry_run is None:
             dry_run = cfg.dry_run_default
 
-        txid = await asyncio.to_thread(
+        send_result = await asyncio.to_thread(
             send_transaction,
             cfg,
             to_address,
@@ -1837,9 +2154,18 @@ async def _handle_send_transfer(arguments: dict[str, Any]) -> List[TextContent]:
             memo,
             dry_run,
         )
+        usd_price, eur_price = await asyncio.to_thread(_fetch_btc_prices)
+        fee_btc = Decimal(send_result["fee_sats_estimate"]) / Decimal("1e8")
         result = {
             "success": True,
-            "txid": txid,
+            "txid": send_result["txid"],
+            "amount_btc": str(amount_btc),
+            "amount_usd": float(amount_btc * usd_price),
+            "amount_eur": float(amount_btc * eur_price),
+            "fee_rate_sat_per_vb": send_result["fee_rate_sat_per_vb"],
+            "fee_sats_estimate": send_result["fee_sats_estimate"],
+            "fee_usd": float(fee_btc * usd_price),
+            "fee_eur": float(fee_btc * eur_price),
             "dry_run": bool(dry_run),
             "network": cfg.network,
         }
@@ -2686,6 +3012,16 @@ async def _handle_ledger_sign_psbt(arguments: dict[str, Any]) -> List[TextConten
     return _ok_response(result)
 
 
+async def _handle_ledger_get_stx_addresses(arguments: dict[str, Any]) -> List[TextContent]:
+    account = arguments.get("account", 0)
+    display = arguments.get("display", False)
+    interface = arguments.get("interface", "hid")
+    result = await asyncio.to_thread(
+        ledger_get_stx_addresses, account, display, interface
+    )
+    return _ok_response(result)
+
+
 async def _handle_ledger_sign_stx_transaction(arguments: dict[str, Any]) -> List[TextContent]:
     tx_hex = (arguments.get("tx_hex") or "").strip()
     if not tx_hex:
@@ -2755,6 +3091,200 @@ async def _handle_buy_get_quote(arguments: dict[str, Any]) -> List[TextContent]:
     fiat = arguments.get("fiat", "USD")
     fiat_amount = arguments.get("fiat_amount", 100.0)
     result = await asyncio.to_thread(buy_get_quote, crypto, fiat, float(fiat_amount))
+    return _ok_response(result)
+
+
+# ===========================================================================
+# Phase 6 Handlers -- Hiro API Enhanced Integration
+# ===========================================================================
+
+
+# -- 6.1 Enhanced Transaction Queries --
+
+
+async def _handle_stx_query_transactions(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_query_transactions,
+        cfg,
+        address=(arguments.get("address") or "").strip() or None,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+        tx_type=(arguments.get("tx_type") or "").strip() or None,
+        unanchored=arguments.get("unanchored", False),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_query_transactions_by_contract(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_id = (arguments.get("contract_id") or "").strip()
+    if not contract_id:
+        return _error_response("Missing 'contract_id' parameter.")
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_query_transactions_by_contract,
+        cfg,
+        contract_id=contract_id,
+        function_name=(arguments.get("function_name") or "").strip() or None,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+# -- 6.2 Mempool Operations --
+
+
+async def _handle_stx_mempool_list_pending(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_mempool_list_pending,
+        cfg,
+        address=(arguments.get("address") or "").strip() or None,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_mempool_get_stats() -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_mempool_get_stats, cfg)
+    return _ok_response(result)
+
+
+async def _handle_stx_mempool_get_dropped(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_mempool_get_dropped,
+        cfg,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+# -- 6.3 Block Explorer --
+
+
+async def _handle_stx_get_recent_blocks(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_recent_blocks,
+        cfg,
+        limit=arguments.get("limit", 20),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_get_block_by_height(arguments: dict[str, Any]) -> List[TextContent]:
+    height = arguments.get("height")
+    if height is None:
+        return _error_response("Missing 'height' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_get_block_by_height, cfg, int(height))
+    return _ok_response(result)
+
+
+async def _handle_stx_get_block_by_hash(arguments: dict[str, Any]) -> List[TextContent]:
+    block_hash = (arguments.get("block_hash") or "").strip()
+    if not block_hash:
+        return _error_response("Missing 'block_hash' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(stx_get_block_by_hash, cfg, block_hash)
+    return _ok_response(result)
+
+
+async def _handle_stx_get_stacks_blocks_for_bitcoin_block(arguments: dict[str, Any]) -> List[TextContent]:
+    bitcoin_height = arguments.get("bitcoin_height")
+    if bitcoin_height is None:
+        return _error_response("Missing 'bitcoin_height' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_stacks_blocks_for_bitcoin_block,
+        cfg,
+        int(bitcoin_height),
+        limit=arguments.get("limit", 20),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+# -- 6.4 Contract Event Monitoring --
+
+
+async def _handle_stx_get_contract_events(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_id = (arguments.get("contract_id") or "").strip()
+    if not contract_id:
+        return _error_response("Missing 'contract_id' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_contract_events,
+        cfg,
+        contract_id=contract_id,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_get_address_asset_events(arguments: dict[str, Any]) -> List[TextContent]:
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_address_asset_events,
+        cfg,
+        address=(arguments.get("address") or "").strip() or None,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+# -- 6.5 Token Metadata --
+
+
+async def _handle_stx_get_token_metadata(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_id = (arguments.get("contract_id") or "").strip()
+    if not contract_id:
+        return _error_response("Missing 'contract_id' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_token_metadata,
+        cfg,
+        contract_id=contract_id,
+        token_type=arguments.get("token_type", "ft"),
+    )
+    return _ok_response(result)
+
+
+async def _handle_stx_get_token_holders(arguments: dict[str, Any]) -> List[TextContent]:
+    contract_id = (arguments.get("contract_id") or "").strip()
+    if not contract_id:
+        return _error_response("Missing 'contract_id' parameter.")
+    cfg = await asyncio.to_thread(STXConfig.from_env)
+    result = await asyncio.to_thread(
+        stx_get_token_holders,
+        cfg,
+        contract_id=contract_id,
+        limit=arguments.get("limit", 50),
+        offset=arguments.get("offset", 0),
+    )
+    return _ok_response(result)
+
+
+# -- 6.6 Network Statistics & Health --
+
+
+async def _handle_stx_get_network_info() -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(stx_get_network_info, cfg)
+    return _ok_response(result)
+
+
+async def _handle_stx_get_network_status() -> List[TextContent]:
+    cfg = await asyncio.to_thread(BTCConfig.from_env)
+    result = await asyncio.to_thread(stx_get_network_status, cfg)
     return _ok_response(result)
 
 

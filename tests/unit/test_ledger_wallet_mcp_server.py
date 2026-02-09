@@ -48,7 +48,7 @@ def test_ledger_tools_in_list():
 
 def test_total_tool_count():
     tools = asyncio.run(server.list_tools())
-    assert len(tools) == 77
+    assert len(tools) == 93
 
 
 # ---------------------------------------------------------------------------

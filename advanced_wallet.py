@@ -149,6 +149,208 @@ def _get_stx_tx_history(
 
 
 # ---------------------------------------------------------------------------
+# Enhanced STX Transaction Queries (Hiro API integration)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_stx_address(cfg: BTCConfig) -> str:
+    """Resolve the STX address from env or mnemonic."""
+    stx_address = os.getenv("STX_ADDRESS", "")
+    if not stx_address:
+        try:
+            from stx_wallet import STXConfig
+            stx_cfg = STXConfig.from_env()
+            stx_address = stx_cfg.stx_address
+        except Exception:
+            pass
+    return stx_address
+
+
+def stx_query_transactions(
+    cfg: BTCConfig,
+    address: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    tx_type: str | None = None,
+    unanchored: bool = False,
+) -> dict[str, Any]:
+    """
+    Enhanced STX transaction query with filtering.
+
+    address: Stacks address (default: wallet address)
+    tx_type: filter by type -- token_transfer, contract_call, smart_contract, coinbase, poison_microblock
+    unanchored: if True, include unconfirmed (mempool) transactions
+    """
+    addr = address or _resolve_stx_address(cfg)
+    if not addr:
+        raise RuntimeError("No STX address available. Set BTC_MNEMONIC or STX_ADDRESS.")
+
+    params: dict[str, Any] = {"limit": limit, "offset": offset}
+    if unanchored:
+        params["unanchored"] = "true"
+
+    url = f"{_hiro_base(cfg.network)}/extended/v2/addresses/{addr}/transactions"
+    try:
+        resp = requests.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise RuntimeError(f"Failed to query transactions for {addr}: {exc}") from exc
+
+    results = []
+    for tx in data.get("results", []):
+        tx_obj = tx.get("tx", tx)
+        this_type = tx_obj.get("tx_type", "")
+        if tx_type and this_type != tx_type:
+            continue
+        results.append({
+            "txid": tx_obj.get("tx_id", ""),
+            "tx_type": this_type,
+            "status": tx_obj.get("tx_status", ""),
+            "block_height": tx_obj.get("block_height"),
+            "block_hash": tx_obj.get("block_hash", ""),
+            "burn_block_time": tx_obj.get("burn_block_time"),
+            "burn_block_time_iso": tx_obj.get("burn_block_time_iso", ""),
+            "fee_rate": tx_obj.get("fee_rate", "0"),
+            "nonce": tx_obj.get("nonce"),
+            "sender_address": tx_obj.get("sender_address", ""),
+            "sponsor_address": tx_obj.get("sponsor_address"),
+            "is_unanchored": tx_obj.get("is_unanchored", False),
+        })
+
+    return {
+        "address": addr,
+        "transactions": results,
+        "total": data.get("total", len(results)),
+        "limit": limit,
+        "offset": offset,
+        "tx_type_filter": tx_type,
+        "unanchored": unanchored,
+        "network": cfg.network,
+    }
+
+
+def stx_query_transactions_by_contract(
+    cfg: BTCConfig,
+    contract_id: str,
+    function_name: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """
+    Query transactions that called a specific contract.
+
+    contract_id: fully qualified, e.g. SP...address.contract-name
+    function_name: optionally filter by called function name
+    """
+    url = f"{_hiro_base(cfg.network)}/extended/v1/address/{contract_id}/transactions"
+    try:
+        resp = requests.get(
+            url, params={"limit": limit, "offset": offset}, timeout=15
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to query transactions for contract {contract_id}: {exc}"
+        ) from exc
+
+    results = []
+    for tx in data.get("results", []):
+        # If function_name filter set, skip non-matching
+        if function_name and tx.get("tx_type") == "contract_call":
+            call_info = tx.get("contract_call", {})
+            if call_info.get("function_name") != function_name:
+                continue
+
+        results.append({
+            "txid": tx.get("tx_id", ""),
+            "tx_type": tx.get("tx_type", ""),
+            "status": tx.get("tx_status", ""),
+            "block_height": tx.get("block_height"),
+            "burn_block_time": tx.get("burn_block_time"),
+            "fee_rate": tx.get("fee_rate", "0"),
+            "sender_address": tx.get("sender_address", ""),
+            "contract_call": tx.get("contract_call"),
+        })
+
+    return {
+        "contract_id": contract_id,
+        "function_name_filter": function_name,
+        "transactions": results,
+        "total": data.get("total", len(results)),
+        "limit": limit,
+        "offset": offset,
+        "network": cfg.network,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Network Statistics & Health
+# ---------------------------------------------------------------------------
+
+
+def stx_get_network_info(cfg: BTCConfig) -> dict[str, Any]:
+    """
+    Get core Stacks network information.
+
+    Returns peer version, burn block height, server version,
+    network ID, and parent network ID.
+    """
+    url = f"{_hiro_base(cfg.network)}/v2/info"
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise RuntimeError(f"Failed to fetch network info: {exc}") from exc
+
+    return {
+        "peer_version": data.get("peer_version"),
+        "pox_consensus": data.get("pox_consensus", ""),
+        "burn_block_height": data.get("burn_block_height"),
+        "stable_pox_consensus": data.get("stable_pox_consensus", ""),
+        "stable_burn_block_height": data.get("stable_burn_block_height"),
+        "server_version": data.get("server_version", ""),
+        "network_id": data.get("network_id"),
+        "parent_network_id": data.get("parent_network_id"),
+        "stacks_tip_height": data.get("stacks_tip_height"),
+        "stacks_tip": data.get("stacks_tip", ""),
+        "stacks_tip_consensus_hash": data.get("stacks_tip_consensus_hash", ""),
+        "unanchored_tip": data.get("unanchored_tip", ""),
+        "exit_at_block_height": data.get("exit_at_block_height"),
+        "network": cfg.network,
+    }
+
+
+def stx_get_network_status(cfg: BTCConfig) -> dict[str, Any]:
+    """
+    Get Stacks blockchain status including sync progress.
+    """
+    url = f"{_hiro_base(cfg.network)}/extended/v1/status"
+    try:
+        resp = requests.get(url, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as exc:
+        raise RuntimeError(f"Failed to fetch network status: {exc}") from exc
+
+    return {
+        "server_version": data.get("server_version", ""),
+        "status": data.get("status", ""),
+        "chain_tip": {
+            "block_height": data.get("chain_tip", {}).get("block_height"),
+            "block_hash": data.get("chain_tip", {}).get("block_hash", ""),
+            "index_block_hash": data.get("chain_tip", {}).get("index_block_hash", ""),
+            "microblock_hash": data.get("chain_tip", {}).get("microblock_hash", ""),
+            "microblock_sequence": data.get("chain_tip", {}).get("microblock_sequence"),
+            "burn_block_height": data.get("chain_tip", {}).get("burn_block_height"),
+        },
+        "network": cfg.network,
+    }
+
+
+# ---------------------------------------------------------------------------
 # 5A.2 Transaction Status
 # ---------------------------------------------------------------------------
 

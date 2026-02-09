@@ -283,6 +283,88 @@ def ledger_sign_psbt(
 
 
 # ---------------------------------------------------------------------------
+# ledger_get_stx_addresses
+# ---------------------------------------------------------------------------
+
+
+def ledger_get_stx_addresses(
+    account: int = 0,
+    display: bool = False,
+    interface: str = "hid",
+) -> dict[str, Any]:
+    """
+    Get Stacks addresses from the Ledger device.
+
+    Queries the Ledger Stacks app for the address at the standard
+    derivation path (m/44'/5757'/account'/0/0).
+
+    - account: account index (default 0)
+    - display: if True, display address on device for verification
+    - interface: 'hid' for USB, 'tcp' for Speculos emulator
+    """
+    derivation_path = f"m/44'/5757'/{account}'/0/0"
+    path_bytes = _serialize_bip32_path(derivation_path)
+
+    transport = _get_transport(interface)
+
+    try:
+        # P1: 0x01 = display address, 0x00 = no display
+        # P2: unused (0x00)
+        p1 = 0x01 if display else 0x00
+
+        sw, response = transport.exchange(
+            STX_CLA, STX_INS_GET_ADDR, p1, 0x00, path_bytes
+        )
+
+        if sw != 0x9000:
+            raise RuntimeError(f"Ledger Stacks app rejected address request: SW=0x{sw:04X}")
+
+        if not response or len(response) < 20:
+            raise RuntimeError(
+                f"Unexpected response length from Ledger: {len(response) if response else 0} bytes"
+            )
+
+        # Response format: public_key (65 bytes) + address_len (1 byte) + address (c32 encoded)
+        # For simplicity, we'll parse based on known response structure
+        if len(response) >= 66:
+            public_key = response[:65].hex()
+            addr_len = response[65]
+            if len(response) >= 66 + addr_len:
+                address = response[66:66 + addr_len].decode("ascii")
+            else:
+                # Fallback: try to parse rest as address
+                address = response[66:].decode("ascii", errors="ignore")
+        else:
+            # Older format or different response structure
+            public_key = response[:65].hex() if len(response) >= 65 else ""
+            address = response[65:].decode("ascii", errors="ignore") if len(response) > 65 else ""
+
+        addresses = [{
+            "symbol": "STX",
+            "address": address,
+            "publicKey": public_key,
+            "derivationPath": derivation_path,
+        }]
+
+    except Exception as exc:
+        addresses = [{
+            "symbol": "STX",
+            "address": "",
+            "publicKey": "",
+            "derivationPath": derivation_path,
+            "error": str(exc),
+        }]
+    finally:
+        transport.close()
+
+    return {
+        "addresses": addresses,
+        "account": account,
+        "device": "ledger",
+    }
+
+
+# ---------------------------------------------------------------------------
 # ledger_sign_stx_transaction
 # ---------------------------------------------------------------------------
 

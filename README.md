@@ -6,9 +6,9 @@
 
 This repo is a single [MCP](https://modelcontextprotocol.io) server that exposes Bitcoin (Layer 1) and Stacks (Layer 2) wallet operations as tools. Agents or other MCP clients connect over stdio, pass tool names and arguments as JSON, and get back structured results. The server wraps local Python wallet code and external APIs (mempool.space, Hiro, CoinGecko, etc.). Destructive actions (send, sign-and-broadcast, deploy) support `dry_run` and do not broadcast by default. No keys or mnemonics are ever returned.
 
-**What it exposes:** 77 tools in two groups. 
+**What it exposes:** 93 tools in two groups. 
 1. **Layer 1 (Bitcoin):** addresses, balance (confirmed and unconfirmed), UTXOs, fee estimation, single and multi-recipient sends, sweep, PSBT sign/decode, message sign/verify, Ordinals / inscriptions, inscription creation, transaction history and RBF, Ledger (Bitcoin app). 
-2. **Layer 2 (Stacks):** STX addresses and balances, nonce, STX and token transfers, Clarity call/deploy/read, signing, swaps (Alex, Bitflow, Velar), sBTC bridge, stacking, BNS, market and portfolio data, Ledger (Stacks app). One mnemonic or WIF key drives both layers; Stacks keys are derived from the same seed.
+2. **Layer 2 (Stacks):** STX addresses and balances, nonce, STX and token transfers, Clarity call/deploy/read, signing, swaps (Alex, Bitflow, Velar), sBTC bridge, stacking, BNS, market and portfolio data, Ledger (Stacks app), enhanced transaction queries with filtering, mempool monitoring, block explorer, contract event monitoring, token metadata (SIP-10/SIP-9), and network statistics. One mnemonic or WIF key drives both layers; Stacks keys are derived from the same seed.
 
 
 
@@ -35,6 +35,12 @@ This repo is a single [MCP](https://modelcontextprotocol.io) server that exposes
     - [Swaps, DeFi & bridge](#swaps-defi--bridge)
     - [BNS & market data](#bns--market-data)
     - [Ledger hardware wallet (Stacks)](#ledger-hardware-wallet-stacks)
+    - [Enhanced transaction queries](#enhanced-transaction-queries)
+    - [Mempool operations](#mempool-operations)
+    - [Block explorer](#block-explorer)
+    - [Contract event monitoring](#contract-event-monitoring)
+    - [Token metadata](#token-metadata)
+    - [Network statistics & health](#network-statistics--health)
 - [Security](#security)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -86,7 +92,7 @@ This repo is a single [MCP](https://modelcontextprotocol.io) server that exposes
 
 4. **Configure environment**: Copy `.env.example` to `.env` and set at least one key source and network (see [Configuration](#configuration)).
 
-5. **Optional**: If you use the repo’s `run_bitcoin_wallet_mcp.sh`, it will prefer `../../execution/venv` when present; otherwise it uses `python3` from `PATH`.
+5. **Optional**: If you use the repo’s `run_btc_wallet_mcp.sh`, it will prefer `../../execution/venv` when present; otherwise it uses `python3` from `PATH`.
 
 ---
 
@@ -129,7 +135,7 @@ Stacks (STX) keys are derived from the same mnemonic using the Stacks path `m/44
 
 ## Running the server
 
-- **Wrapper script** (recommended): `run_bitcoin_wallet_mcp.sh` loads `.env` from repo root, uses `execution/venv/bin/python3` if present else `python3`, runs the server over stdio.
+- **Wrapper script** (recommended): `run_btc_wallet_mcp.sh` loads `.env` from repo root, uses `execution/venv/bin/python3` if present else `python3`, runs the server over stdio.
 - **Direct:** Set env from `.env`, then run `python3 bitcoin_wallet_mcp_server.py` from this directory.
 
 ### Cursor MCP config
@@ -140,7 +146,7 @@ Add to `.cursor/mcp.json` (or your Cursor MCP config file):
 {
   "mcpServers": {
     "bitcoin-wallet": {
-      "command": "/absolute/path/to/repo/mcp/btc_wallet/run_bitcoin_wallet_mcp.sh"
+      "command": "/absolute/path/to/repo/mcp/btc_wallet/run_btc_wallet_mcp.sh"
     }
   }
 }
@@ -153,8 +159,8 @@ Use an absolute path to your repo. The server lives in `mcp/btc_wallet/`. Put `.
 ## Architecture
 
 - **Entrypoint**: `bitcoin_wallet_mcp_server.py`. Single MCP server; registers all tools and delegates to wallet modules.
-- **Layer 1 (Bitcoin) modules**: `bitcoin_wallet.py` (addresses, accounts, balance, sends, PSBT, message signing, fees, UTXOs); `ord_wallet.py` (ordinals and inscriptions); `inscribe_onramp_wallet.py` (inscription creation, buy quotes); `advanced_wallet.py` (transaction history, RBF, wallet network); `ledger_wallet.py` (Ledger Bitcoin app).
-- **Layer 2 (Stacks) modules**: `stx_wallet.py` (addresses, accounts, balance, STX/token transfers, contracts, signing); `defi_wallet.py` (swaps via Alex, Bitflow, Velar; sBTC bridge; stacking); `bns_market_wallet.py` (BNS, market, portfolio); `ledger_wallet.py` (Ledger Stacks app).
+- **Layer 1 (Bitcoin) modules**: `bitcoin_wallet.py` (addresses, accounts, balance, sends, PSBT, message signing, fees, UTXOs); `ord_wallet.py` (ordinals and inscriptions); `inscribe_onramp_wallet.py` (inscription creation, buy quotes); `advanced_wallet.py` (transaction history, RBF, wallet network, enhanced STX transaction queries, network statistics); `ledger_wallet.py` (Ledger Bitcoin app).
+- **Layer 2 (Stacks) modules**: `stx_wallet.py` (addresses, accounts, balance, STX/token transfers, contracts, signing); `defi_wallet.py` (swaps via Alex, Bitflow, Velar; sBTC bridge; stacking with enhanced cycle metrics); `bns_market_wallet.py` (BNS, market, portfolio); `stx_mempool.py` (mempool monitoring and statistics); `stx_explorer.py` (block explorer queries); `stx_events.py` (contract event monitoring); `stx_token_metadata.py` (SIP-10/SIP-9 token metadata); `ledger_wallet.py` (Ledger Stacks app).
 
 **Responses:** JSON with `"success": true` and data, or `"success": false` and `"error"`. Keys and mnemonics are never returned.
 
@@ -162,7 +168,7 @@ Use an absolute path to your repo. The server lives in `mcp/btc_wallet/`. Put `.
 
 ## Tools reference
 
-**77 tools**, grouped by Layer 1 (Bitcoin) and Layer 2 (Stacks). Parameters and response shape are below; optional args can be omitted. `dry_run` defaults to `BTC_DRY_RUN` (usually `true`).
+**93 tools**, grouped by Layer 1 (Bitcoin) and Layer 2 (Stacks). Parameters and response shape are below; optional args can be omitted. `dry_run` defaults to `BTC_DRY_RUN` (usually `true`).
 
 ---
 
@@ -445,13 +451,13 @@ Clarity argument examples: `u100`, `i-5`, `true`/`false`, `none`, `'SP...` (prin
 
 #### Swaps, DeFi & bridge
 
-**Swap protocols:** Alex, Bitflow, and Velar. Use `protocol` for quotes and pair listing: **alex** (pools and token prices), **bitflow** (ticker API), **velar** (Alex token prices). **Execution is Alex only:** call `swap_execute` with `protocol=alex` (or omit; default is alex). For bitflow or velar you get a quote only; to execute, use protocol alex.
+**Swap protocols:** Alex, Bitflow, and Velar. Use `protocol` for quotes and pair listing: **alex** (pools and token prices), **bitflow** (ticker API), **velar** (Alex token prices). **Execution:** `swap_execute` supports `protocol=alex` only (default). For bitflow or velar you get a quote only; to execute, use protocol alex. Execution for Bitflow and Velar could be added via protocol SDKs (e.g. Velar’s @velarprotocol/velar-sdk returns contract-call params; Bitflow requires their SDK or API).
 
 | Tool | Description |
 |------|-------------|
 | `swap_get_supported_pairs` | List supported swap pairs and protocols (Alex pools, Bitflow ticker). |
 | `swap_get_quote` | Get swap quote: estimated output, rate, fees. Protocol: alex (default), bitflow, or velar. |
-| `swap_execute` | Execute swap via Alex DEX contract call (protocol must be alex). |
+| `swap_execute` | Execute swap via Alex DEX contract call (protocol=alex). Bitflow/Velar execution could be added via protocol SDKs. |
 | `swap_get_history` | Swap transaction history from on-chain activity. |
 | `sbtc_get_balance` | sBTC token balance for the wallet. |
 | `sbtc_bridge_deposit` | Deposit info for bridging BTC → sBTC. |
@@ -496,9 +502,111 @@ Requires a Ledger device connected via USB with the Stacks app open. Use `interf
 
 | Tool | Description |
 |------|-------------|
+| `ledger_get_stx_addresses` | Get Stacks addresses from Ledger device with public keys and derivation paths. |
 | `ledger_sign_stx_transaction` | Sign a Stacks transaction with Ledger Stacks app. |
 
-**Parameters** (sign STX): `tx_hex`, optional `derivation_path`, `interface`.
+**Parameters** (`ledger_get_stx_addresses`): optional `account`, `display`, `interface`.  
+**Parameters** (`ledger_sign_stx_transaction`): `tx_hex`, optional `derivation_path`, `interface`.
+
+---
+
+#### Enhanced transaction queries
+
+Advanced Stacks transaction queries with filtering, contract-specific queries, and mempool inclusion. Uses Hiro `/extended/v2/addresses/` and `/extended/v1/address/` endpoints.
+
+| Tool | Description |
+|------|-------------|
+| `stx_query_transactions` | Query Stacks transactions for an address with filtering by type and mempool inclusion. |
+| `stx_query_transactions_by_contract` | Query transactions that called a specific contract, optionally filtered by function name. |
+
+**Parameters** (`stx_query_transactions`): optional `address`, `limit`, `offset`, `tx_type` (`token_transfer`, `contract_call`, `smart_contract`, `coinbase`, `poison_microblock`), `unanchored` (include mempool).  
+**Parameters** (`stx_query_transactions_by_contract`): `contract_id` (required), optional `function_name`, `limit`, `offset`.
+
+**Example response** (`stx_query_transactions`): `{ "success": true, "address": "SP...", "transactions": [{ "txid": "0x...", "tx_type": "token_transfer", "status": "success", "block_height": 150000 }], "total": 42, "tx_type_filter": null, "unanchored": false }`
+
+---
+
+#### Mempool operations
+
+Monitor pending Stacks transactions, view mempool statistics, and track dropped transactions. Uses Hiro `/extended/v1/tx/mempool/` endpoints.
+
+| Tool | Description |
+|------|-------------|
+| `stx_mempool_list_pending` | List pending mempool transactions, optionally filtered by address. |
+| `stx_mempool_get_stats` | Get mempool statistics: transaction counts by type, fee averages, ages, byte sizes. |
+| `stx_mempool_get_dropped` | Get recently dropped mempool transactions (removed without being mined). |
+
+**Parameters** (`stx_mempool_list_pending`): optional `address`, `limit`, `offset`.  
+**Parameters** (`stx_mempool_get_dropped`): optional `limit`, `offset`.
+
+**Example response** (`stx_mempool_get_stats`): `{ "success": true, "tx_type_counts": { "token_transfer": 42, "contract_call": 18 }, "tx_simple_fee_averages": { "token_transfer": { "p50": 200 } } }`
+
+---
+
+#### Block explorer
+
+Query Stacks blocks by height, hash, or Bitcoin block association. Uses Hiro `/extended/v2/blocks/` and `/extended/v2/burn-blocks/` endpoints.
+
+| Tool | Description |
+|------|-------------|
+| `stx_get_recent_blocks` | Get recent Stacks blocks with metadata (height, hash, tx count, burn block info). |
+| `stx_get_block_by_height` | Get a specific Stacks block by its height, including transaction IDs. |
+| `stx_get_block_by_hash` | Get a specific Stacks block by its hash. |
+| `stx_get_stacks_blocks_for_bitcoin_block` | Get all Stacks blocks produced during a specific Bitcoin block. |
+
+**Parameters** (`stx_get_recent_blocks`): optional `limit`, `offset`.  
+**Parameters** (`stx_get_block_by_height`): `height` (required).  
+**Parameters** (`stx_get_block_by_hash`): `block_hash` (required, with or without `0x` prefix).  
+**Parameters** (`stx_get_stacks_blocks_for_bitcoin_block`): `bitcoin_height` (required), optional `limit`, `offset`.
+
+**Example response** (`stx_get_block_by_height`): `{ "success": true, "height": 150000, "hash": "0x...", "burn_block_height": 935748, "tx_count": 12, "transaction_ids": ["0x..."] }`
+
+---
+
+#### Contract event monitoring
+
+Track events emitted by smart contracts and asset transfers for addresses. Uses Hiro `/extended/v1/contract/` and `/extended/v1/address/` endpoints.
+
+| Tool | Description |
+|------|-------------|
+| `stx_get_contract_events` | Get event history for a contract (print events, FT/NFT events, STX events). |
+| `stx_get_address_asset_events` | Get asset events (FT, NFT, STX transfers) for an address. |
+
+**Parameters** (`stx_get_contract_events`): `contract_id` (required), optional `limit`, `offset`.  
+**Parameters** (`stx_get_address_asset_events`): optional `address` (default: wallet), `limit`, `offset`.
+
+**Example response** (`stx_get_contract_events`): `{ "success": true, "contract_id": "SP...contract", "events": [{ "event_type": "fungible_token_asset", "tx_id": "0x...", "asset_id": "SP...::token", "amount": "1000" }], "total": 5 }`
+
+---
+
+#### Token metadata
+
+Query SIP-10 fungible and SIP-9 non-fungible token metadata and holder information. Uses Hiro Token Metadata API (`/metadata/v1/`).
+
+| Tool | Description |
+|------|-------------|
+| `stx_get_token_metadata` | Get metadata for a fungible (SIP-10) or non-fungible (SIP-9) token: name, symbol, decimals, supply. |
+| `stx_get_token_holders` | Get holder addresses and balances for a fungible token. |
+
+**Parameters** (`stx_get_token_metadata`): `contract_id` (required), optional `token_type` (`ft` or `nft`, default: `ft`).  
+**Parameters** (`stx_get_token_holders`): `contract_id` (required), optional `limit`, `offset`.
+
+**Example response** (`stx_get_token_metadata`): `{ "success": true, "contract_id": "SP...::alex-token", "name": "Alex Token", "symbol": "ALEX", "decimals": 8, "total_supply": "1000000000000" }`
+
+---
+
+#### Network statistics & health
+
+Query Stacks network status, peer info, and chain tip details. Uses Hiro `/v2/info` and `/extended/v1/status` endpoints.
+
+| Tool | Description |
+|------|-------------|
+| `stx_get_network_info` | Core network info: peer version, burn block height, server version, chain tip. |
+| `stx_get_network_status` | Blockchain sync status and chain tip details. |
+
+**Parameters**: None.
+
+**Example response** (`stx_get_network_info`): `{ "success": true, "peer_version": 402653189, "burn_block_height": 935748, "stacks_tip_height": 150000, "server_version": "stacks-node 2.5.0" }`
 
 ---
 
@@ -521,7 +629,7 @@ Unit tests live under `tests/unit/` and target MCP server behavior and wallet mo
 python -m pytest mcp/btc_wallet/tests/unit -v
 ```
 
-Test modules include: `test_bitcoin_wallet_mcp_server.py`, `test_stx_wallet_mcp_server.py`, `test_ord_wallet_mcp_server.py`, `test_defi_wallet_mcp_server.py`, `test_phase5ab_mcp_server.py`, `test_phase5d_mcp_server.py`, `test_ledger_wallet_mcp_server.py`. Ledger tests require a device or Speculos.
+Test modules include: `test_bitcoin_wallet_mcp_server.py`, `test_stx_wallet_mcp_server.py`, `test_ord_wallet_mcp_server.py`, `test_defi_wallet_mcp_server.py`, `test_phase5ab_mcp_server.py`, `test_phase5d_mcp_server.py`, `test_ledger_wallet_mcp_server.py`, `test_hiro_integration_mcp_server.py`. Ledger tests require a device or Speculos.
 
 ---
 
