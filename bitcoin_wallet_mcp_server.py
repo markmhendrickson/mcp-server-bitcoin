@@ -179,7 +179,9 @@ def _ok_response(data: dict[str, Any]) -> List[TextContent]:
 
 
 def _error_response(message: str) -> List[TextContent]:
-    return [TextContent(type="text", text=json.dumps({"success": False, "error": message}))]
+    return [
+        TextContent(type="text", text=json.dumps({"success": False, "error": message}))
+    ]
 
 
 def _parse_decimal(value: Any, field_name: str) -> Decimal:
@@ -261,9 +263,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "to_address": {"type": "string", "description": "Recipient address"},
-                    "amount_btc": {"type": "number", "description": "Amount to send in BTC"},
-                    "amount_eur": {"type": "number", "description": "Amount to send in EUR"},
+                    "to_address": {
+                        "type": "string",
+                        "description": "Recipient address",
+                    },
+                    "amount_btc": {
+                        "type": "number",
+                        "description": "Amount to send in BTC",
+                    },
+                    "amount_eur": {
+                        "type": "number",
+                        "description": "Amount to send in EUR",
+                    },
                 },
                 "required": ["to_address"],
             },
@@ -277,14 +288,26 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "to_address": {"type": "string", "description": "Recipient address"},
-                    "amount_btc": {"type": "number", "description": "Amount to send in BTC"},
-                    "amount_eur": {"type": "number", "description": "Amount to send in EUR"},
+                    "to_address": {
+                        "type": "string",
+                        "description": "Recipient address",
+                    },
+                    "amount_btc": {
+                        "type": "number",
+                        "description": "Amount to send in BTC",
+                    },
+                    "amount_eur": {
+                        "type": "number",
+                        "description": "Amount to send in EUR",
+                    },
                     "max_fee_sats": {
                         "type": "integer",
                         "description": "Optional max fee in satoshis",
                     },
-                    "memo": {"type": "string", "description": "Optional transaction memo"},
+                    "memo": {
+                        "type": "string",
+                        "description": "Optional transaction memo",
+                    },
                     "dry_run": {
                         "type": "boolean",
                         "description": "If true, build but do not broadcast",
@@ -310,8 +333,14 @@ async def list_tools() -> List[Tool]:
                         "items": {
                             "type": "object",
                             "properties": {
-                                "address": {"type": "string", "description": "Recipient BTC address"},
-                                "amount_sats": {"type": "integer", "description": "Amount in satoshis"},
+                                "address": {
+                                    "type": "string",
+                                    "description": "Recipient BTC address",
+                                },
+                                "amount_sats": {
+                                    "type": "integer",
+                                    "description": "Amount in satoshis",
+                                },
                             },
                             "required": ["address", "amount_sats"],
                         },
@@ -340,7 +369,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "to_address": {"type": "string", "description": "Recipient address"},
+                    "to_address": {
+                        "type": "string",
+                        "description": "Recipient address",
+                    },
                     "fee_rate": {
                         "type": "integer",
                         "description": "Optional fee rate in sat/vB (uses wallet default if omitted)",
@@ -481,8 +513,14 @@ async def list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "message": {"type": "string", "description": "Original message"},
-                    "signature": {"type": "string", "description": "Base64 encoded signature"},
-                    "address": {"type": "string", "description": "Signer's BTC address"},
+                    "signature": {
+                        "type": "string",
+                        "description": "Base64 encoded signature",
+                    },
+                    "address": {
+                        "type": "string",
+                        "description": "Signer's BTC address",
+                    },
                 },
                 "required": ["message", "signature", "address"],
             },
@@ -520,7 +558,13 @@ async def list_tools() -> List[Tool]:
                     },
                     "fee_tier": {
                         "type": "string",
-                        "enum": ["fastestFee", "halfHourFee", "hourFee", "economyFee", "minimumFee"],
+                        "enum": [
+                            "fastestFee",
+                            "halfHourFee",
+                            "hourFee",
+                            "economyFee",
+                            "minimumFee",
+                        ],
                         "description": "Fee tier (default: wallet config)",
                     },
                 },
@@ -614,14 +658,26 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient Stacks address",
+                    },
                     "amount_ustx": {
                         "type": "integer",
                         "description": "Amount in micro-STX (1 STX = 1000000 uSTX)",
                     },
-                    "memo": {"type": "string", "description": "Optional memo (max 34 bytes)"},
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "nonce": {"type": "integer", "description": "Optional nonce override"},
+                    "memo": {
+                        "type": "string",
+                        "description": "Optional memo (max 34 bytes)",
+                    },
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "nonce": {
+                        "type": "integer",
+                        "description": "Optional nonce override",
+                    },
                     "dry_run": {
                         "type": "boolean",
                         "description": "If true, build and sign but do not broadcast (default: true)",
@@ -639,7 +695,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient Stacks address",
+                    },
                     "amount_ustx": {
                         "type": "integer",
                         "description": "Amount in micro-STX",
@@ -658,15 +717,27 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient Stacks address",
+                    },
                     "asset": {
                         "type": "string",
                         "description": "Fully qualified asset: 'address.contract-name::token-name'",
                     },
                     "amount": {"type": "integer", "description": "Amount to transfer"},
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "nonce": {"type": "integer", "description": "Optional nonce override"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "nonce": {
+                        "type": "integer",
+                        "description": "Optional nonce override",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["recipient", "asset", "amount"],
             },
@@ -680,15 +751,30 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "recipient": {"type": "string", "description": "Recipient Stacks address"},
+                    "recipient": {
+                        "type": "string",
+                        "description": "Recipient Stacks address",
+                    },
                     "asset": {
                         "type": "string",
                         "description": "Fully qualified asset: 'address.contract-name::nft-name'",
                     },
-                    "asset_id": {"type": "string", "description": "NFT identifier (uint)"},
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "nonce": {"type": "integer", "description": "Optional nonce override"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "asset_id": {
+                        "type": "string",
+                        "description": "NFT identifier (uint)",
+                    },
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "nonce": {
+                        "type": "integer",
+                        "description": "Optional nonce override",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["recipient", "asset", "asset_id"],
             },
@@ -703,17 +789,32 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_address": {"type": "string", "description": "Contract deployer address"},
+                    "contract_address": {
+                        "type": "string",
+                        "description": "Contract deployer address",
+                    },
                     "contract_name": {"type": "string", "description": "Contract name"},
-                    "function_name": {"type": "string", "description": "Function to call"},
+                    "function_name": {
+                        "type": "string",
+                        "description": "Function to call",
+                    },
                     "function_args": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Clarity-encoded arguments: u100, 'SPaddr, true, none, 0xBEEF, \"text\"",
+                        "description": 'Clarity-encoded arguments: u100, \'SPaddr, true, none, 0xBEEF, "text"',
                     },
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "nonce": {"type": "integer", "description": "Optional nonce override"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "nonce": {
+                        "type": "integer",
+                        "description": "Optional nonce override",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["contract_address", "contract_name", "function_name"],
             },
@@ -724,15 +825,30 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_name": {"type": "string", "description": "Name for the contract"},
-                    "clarity_code": {"type": "string", "description": "Clarity source code"},
+                    "contract_name": {
+                        "type": "string",
+                        "description": "Name for the contract",
+                    },
+                    "clarity_code": {
+                        "type": "string",
+                        "description": "Clarity source code",
+                    },
                     "clarity_version": {
                         "type": "integer",
                         "description": "Clarity version (default: 2)",
                     },
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "nonce": {"type": "integer", "description": "Optional nonce override"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "nonce": {
+                        "type": "integer",
+                        "description": "Optional nonce override",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["contract_name", "clarity_code"],
             },
@@ -746,9 +862,15 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_address": {"type": "string", "description": "Contract deployer address"},
+                    "contract_address": {
+                        "type": "string",
+                        "description": "Contract deployer address",
+                    },
                     "contract_name": {"type": "string", "description": "Contract name"},
-                    "function_name": {"type": "string", "description": "Function to call"},
+                    "function_name": {
+                        "type": "string",
+                        "description": "Function to call",
+                    },
                     "function_args": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -772,7 +894,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "tx_hex": {"type": "string", "description": "Hex-encoded unsigned transaction"},
+                    "tx_hex": {
+                        "type": "string",
+                        "description": "Hex-encoded unsigned transaction",
+                    },
                 },
                 "required": ["tx_hex"],
             },
@@ -816,8 +941,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "domain": {"type": "string", "description": "SIP-018 domain string"},
-                    "message": {"type": "string", "description": "SIP-018 message string"},
+                    "domain": {
+                        "type": "string",
+                        "description": "SIP-018 domain string",
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "SIP-018 message string",
+                    },
                 },
                 "required": ["domain", "message"],
             },
@@ -854,7 +985,10 @@ async def list_tools() -> List[Tool]:
                         "type": "object",
                         "description": "schema.org/Person object with profile fields",
                     },
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["person"],
             },
@@ -872,8 +1006,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
-                    "limit": {"type": "integer", "description": "Page size, max 60 (default: 20)"},
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Page size, max 60 (default: 20)",
+                    },
                     "address": {
                         "type": "string",
                         "description": "Address to query (default: wallet's taproot address)",
@@ -913,15 +1053,27 @@ async def list_tools() -> List[Tool]:
                         "items": {
                             "type": "object",
                             "properties": {
-                                "address": {"type": "string", "description": "Recipient BTC address"},
-                                "inscriptionId": {"type": "string", "description": "Inscription ID"},
+                                "address": {
+                                    "type": "string",
+                                    "description": "Recipient BTC address",
+                                },
+                                "inscriptionId": {
+                                    "type": "string",
+                                    "description": "Inscription ID",
+                                },
                             },
                             "required": ["address", "inscriptionId"],
                         },
                         "description": "List of inscription transfers",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["transfers"],
             },
@@ -941,15 +1093,27 @@ async def list_tools() -> List[Tool]:
                         "items": {
                             "type": "object",
                             "properties": {
-                                "address": {"type": "string", "description": "Recipient BTC address"},
-                                "inscriptionId": {"type": "string", "description": "Inscription ID"},
+                                "address": {
+                                    "type": "string",
+                                    "description": "Recipient BTC address",
+                                },
+                                "inscriptionId": {
+                                    "type": "string",
+                                    "description": "Inscription ID",
+                                },
                             },
                             "required": ["address", "inscriptionId"],
                         },
                         "description": "List of inscription transfers",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["transfers"],
             },
@@ -967,8 +1131,14 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "UTXO outpoint in 'txid:vout' format",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["outpoint"],
             },
@@ -987,8 +1157,14 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Optional: recover a specific UTXO ('txid:vout')",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
             },
         ),
@@ -1005,8 +1181,14 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Optional: recover from a specific UTXO ('txid:vout')",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
             },
         ),
@@ -1058,15 +1240,27 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "token_in": {"type": "string", "description": "Input token contract ID or 'STX'"},
-                    "token_out": {"type": "string", "description": "Output token contract ID or 'STX'"},
+                    "token_in": {
+                        "type": "string",
+                        "description": "Input token contract ID or 'STX'",
+                    },
+                    "token_out": {
+                        "type": "string",
+                        "description": "Output token contract ID or 'STX'",
+                    },
                     "amount": {"type": "integer", "description": "Amount of token_in"},
                     "min_output": {
                         "type": "integer",
                         "description": "Minimum acceptable output (slippage protection)",
                     },
-                    "protocol": {"type": "string", "description": "Must be alex for execution (default: alex)"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "protocol": {
+                        "type": "string",
+                        "description": "Must be alex for execution (default: alex)",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["token_in", "token_out", "amount"],
             },
@@ -1077,8 +1271,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Page size (default: 20)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Page size (default: 20)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
             },
         ),
@@ -1108,9 +1308,7 @@ async def list_tools() -> List[Tool]:
         ),
         Tool(
             name="sbtc_bridge_withdraw",
-            description=(
-                "Get withdrawal information for converting sBTC back to BTC."
-            ),
+            description=("Get withdrawal information for converting sBTC back to BTC."),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -1157,7 +1355,10 @@ async def list_tools() -> List[Tool]:
                         "type": "integer",
                         "description": "Number of cycles to stack (1-12, default: 1)",
                     },
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["amount_ustx", "pox_address"],
             },
@@ -1168,7 +1369,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
             },
         ),
@@ -1181,8 +1385,15 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "chain": {"type": "string", "enum": ["btc", "stx", "both"], "description": "Which chain (default: both)"},
-                    "limit": {"type": "integer", "description": "Page size (default: 20)"},
+                    "chain": {
+                        "type": "string",
+                        "enum": ["btc", "stx", "both"],
+                        "description": "Which chain (default: both)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Page size (default: 20)",
+                    },
                     "offset": {"type": "integer", "description": "Pagination offset"},
                 },
             },
@@ -1194,7 +1405,11 @@ async def list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "txid": {"type": "string", "description": "Transaction ID"},
-                    "chain": {"type": "string", "enum": ["btc", "stx"], "description": "Chain (default: btc)"},
+                    "chain": {
+                        "type": "string",
+                        "enum": ["btc", "stx"],
+                        "description": "Chain (default: btc)",
+                    },
                 },
                 "required": ["txid"],
             },
@@ -1205,9 +1420,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "txid": {"type": "string", "description": "Transaction ID to speed up"},
-                    "new_fee_rate": {"type": "integer", "description": "New fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "txid": {
+                        "type": "string",
+                        "description": "Transaction ID to speed up",
+                    },
+                    "new_fee_rate": {
+                        "type": "integer",
+                        "description": "New fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["txid"],
             },
@@ -1218,9 +1442,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "txid": {"type": "string", "description": "Transaction ID to cancel"},
-                    "fee_rate": {"type": "integer", "description": "Fee rate for cancel tx in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "txid": {
+                        "type": "string",
+                        "description": "Transaction ID to cancel",
+                    },
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate for cancel tx in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["txid"],
             },
@@ -1236,7 +1469,11 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "network": {"type": "string", "enum": ["mainnet", "testnet"], "description": "Target network"},
+                    "network": {
+                        "type": "string",
+                        "enum": ["mainnet", "testnet"],
+                        "description": "Target network",
+                    },
                 },
                 "required": ["network"],
             },
@@ -1248,8 +1485,14 @@ async def list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "Network name"},
-                    "btc_api_url": {"type": "string", "description": "Custom mempool.space URL"},
-                    "stx_api_url": {"type": "string", "description": "Custom Hiro API URL"},
+                    "btc_api_url": {
+                        "type": "string",
+                        "description": "Custom mempool.space URL",
+                    },
+                    "stx_api_url": {
+                        "type": "string",
+                        "description": "Custom Hiro API URL",
+                    },
                 },
                 "required": ["name"],
             },
@@ -1268,7 +1511,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "BNS name, e.g. 'alice.btc'"},
+                    "name": {
+                        "type": "string",
+                        "description": "BNS name, e.g. 'alice.btc'",
+                    },
                 },
                 "required": ["name"],
             },
@@ -1279,7 +1525,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "address": {"type": "string", "description": "Stacks address (default: wallet)"},
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address (default: wallet)",
+                    },
                 },
             },
         ),
@@ -1289,10 +1538,22 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "Name to register (without namespace)"},
-                    "namespace": {"type": "string", "description": "Namespace (default: btc)"},
-                    "fee": {"type": "integer", "description": "Optional fee in micro-STX"},
-                    "dry_run": {"type": "boolean", "description": "If true, don't broadcast"},
+                    "name": {
+                        "type": "string",
+                        "description": "Name to register (without namespace)",
+                    },
+                    "namespace": {
+                        "type": "string",
+                        "description": "Namespace (default: btc)",
+                    },
+                    "fee": {
+                        "type": "integer",
+                        "description": "Optional fee in micro-STX",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, don't broadcast",
+                    },
                 },
                 "required": ["name"],
             },
@@ -1304,11 +1565,13 @@ async def list_tools() -> List[Tool]:
                 "type": "object",
                 "properties": {
                     "coins": {
-                        "type": "array", "items": {"type": "string"},
+                        "type": "array",
+                        "items": {"type": "string"},
                         "description": "CoinGecko coin IDs (default: bitcoin, blockstack)",
                     },
                     "vs_currencies": {
-                        "type": "array", "items": {"type": "string"},
+                        "type": "array",
+                        "items": {"type": "string"},
                         "description": "Fiat currencies (default: usd, eur)",
                     },
                 },
@@ -1320,10 +1583,22 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "coin": {"type": "string", "description": "CoinGecko coin ID (default: bitcoin)"},
-                    "vs_currency": {"type": "string", "description": "Fiat currency (default: usd)"},
-                    "days": {"type": "integer", "description": "Number of days (default: 7)"},
-                    "interval": {"type": "string", "description": "Interval: daily, hourly (default: daily)"},
+                    "coin": {
+                        "type": "string",
+                        "description": "CoinGecko coin ID (default: bitcoin)",
+                    },
+                    "vs_currency": {
+                        "type": "string",
+                        "description": "Fiat currency (default: usd)",
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days (default: 7)",
+                    },
+                    "interval": {
+                        "type": "string",
+                        "description": "Interval: daily, hourly (default: daily)",
+                    },
                 },
             },
         ),
@@ -1343,7 +1618,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Max items per chain (default: 20)"},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max items per chain (default: 20)",
+                    },
                 },
             },
         ),
@@ -1360,7 +1638,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "account": {"type": "integer", "description": "Account index (default: 0)"},
+                    "account": {
+                        "type": "integer",
+                        "description": "Account index (default: 0)",
+                    },
                     "display": {
                         "type": "boolean",
                         "description": "If true, display address on device for verification",
@@ -1402,7 +1683,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "account": {"type": "integer", "description": "Account index (default: 0)"},
+                    "account": {
+                        "type": "integer",
+                        "description": "Account index (default: 0)",
+                    },
                     "display": {
                         "type": "boolean",
                         "description": "If true, display address on device for verification",
@@ -1424,7 +1708,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "tx_hex": {"type": "string", "description": "Hex-encoded unsigned STX transaction"},
+                    "tx_hex": {
+                        "type": "string",
+                        "description": "Hex-encoded unsigned STX transaction",
+                    },
                     "derivation_path": {
                         "type": "string",
                         "description": "BIP-32 derivation path (default: m/44'/5757'/0'/0/0)",
@@ -1468,8 +1755,14 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Address to receive inscription (default: wallet taproot)",
                     },
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, estimate only"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, estimate only",
+                    },
                 },
                 "required": ["content_type", "content"],
             },
@@ -1498,8 +1791,14 @@ async def list_tools() -> List[Tool]:
                         "description": "Content encoding (default: utf-8)",
                     },
                     "recipient": {"type": "string", "description": "Recipient address"},
-                    "fee_rate": {"type": "integer", "description": "Fee rate in sat/vB"},
-                    "dry_run": {"type": "boolean", "description": "If true, estimate only"},
+                    "fee_rate": {
+                        "type": "integer",
+                        "description": "Fee rate in sat/vB",
+                    },
+                    "dry_run": {
+                        "type": "boolean",
+                        "description": "If true, estimate only",
+                    },
                 },
                 "required": ["content_type", "contents"],
             },
@@ -1510,8 +1809,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "crypto": {"type": "string", "description": "Filter by crypto (BTC, STX, ETH)"},
-                    "fiat": {"type": "string", "description": "Filter by fiat (USD, EUR, GBP)"},
+                    "crypto": {
+                        "type": "string",
+                        "description": "Filter by crypto (BTC, STX, ETH)",
+                    },
+                    "fiat": {
+                        "type": "string",
+                        "description": "Filter by fiat (USD, EUR, GBP)",
+                    },
                 },
             },
         ),
@@ -1524,9 +1829,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "crypto": {"type": "string", "description": "Cryptocurrency: BTC, STX, ETH (default: BTC)"},
-                    "fiat": {"type": "string", "description": "Fiat currency: USD, EUR (default: USD)"},
-                    "fiat_amount": {"type": "number", "description": "Fiat amount to spend (default: 100)"},
+                    "crypto": {
+                        "type": "string",
+                        "description": "Cryptocurrency: BTC, STX, ETH (default: BTC)",
+                    },
+                    "fiat": {
+                        "type": "string",
+                        "description": "Fiat currency: USD, EUR (default: USD)",
+                    },
+                    "fiat_amount": {
+                        "type": "number",
+                        "description": "Fiat amount to spend (default: 100)",
+                    },
                 },
             },
         ),
@@ -1543,15 +1857,33 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "address": {"type": "string", "description": "Stacks address (default: wallet address)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address (default: wallet address)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                     "tx_type": {
                         "type": "string",
-                        "enum": ["token_transfer", "contract_call", "smart_contract", "coinbase", "poison_microblock"],
+                        "enum": [
+                            "token_transfer",
+                            "contract_call",
+                            "smart_contract",
+                            "coinbase",
+                            "poison_microblock",
+                        ],
                         "description": "Filter by transaction type",
                     },
-                    "unanchored": {"type": "boolean", "description": "Include mempool/unconfirmed transactions (default: false)"},
+                    "unanchored": {
+                        "type": "boolean",
+                        "description": "Include mempool/unconfirmed transactions (default: false)",
+                    },
                 },
             },
         ),
@@ -1564,10 +1896,22 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_id": {"type": "string", "description": "Contract ID (e.g. SP...address.contract-name)"},
-                    "function_name": {"type": "string", "description": "Filter by function name (optional)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "contract_id": {
+                        "type": "string",
+                        "description": "Contract ID (e.g. SP...address.contract-name)",
+                    },
+                    "function_name": {
+                        "type": "string",
+                        "description": "Filter by function name (optional)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
                 "required": ["contract_id"],
             },
@@ -1582,9 +1926,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "address": {"type": "string", "description": "Stacks address to filter by (optional, omit for global mempool)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address to filter by (optional, omit for global mempool)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
             },
         ),
@@ -1605,8 +1958,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
             },
         ),
@@ -1617,8 +1976,14 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "limit": {"type": "integer", "description": "Number of blocks (default: 20)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of blocks (default: 20)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
             },
         ),
@@ -1639,7 +2004,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "block_hash": {"type": "string", "description": "Block hash (with or without 0x prefix)"},
+                    "block_hash": {
+                        "type": "string",
+                        "description": "Block hash (with or without 0x prefix)",
+                    },
                 },
                 "required": ["block_hash"],
             },
@@ -1653,9 +2021,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "bitcoin_height": {"type": "integer", "description": "Bitcoin block height"},
-                    "limit": {"type": "integer", "description": "Max results (default: 20)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "bitcoin_height": {
+                        "type": "integer",
+                        "description": "Bitcoin block height",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 20)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
                 "required": ["bitcoin_height"],
             },
@@ -1670,9 +2047,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_id": {"type": "string", "description": "Contract ID (e.g. SP...address.contract-name)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "contract_id": {
+                        "type": "string",
+                        "description": "Contract ID (e.g. SP...address.contract-name)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
                 "required": ["contract_id"],
             },
@@ -1686,9 +2072,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "address": {"type": "string", "description": "Stacks address (default: wallet address)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "address": {
+                        "type": "string",
+                        "description": "Stacks address (default: wallet address)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
             },
         ),
@@ -1702,7 +2097,10 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_id": {"type": "string", "description": "Token contract ID (e.g. SP...address.contract-name)"},
+                    "contract_id": {
+                        "type": "string",
+                        "description": "Token contract ID (e.g. SP...address.contract-name)",
+                    },
                     "token_type": {
                         "type": "string",
                         "enum": ["ft", "nft"],
@@ -1718,9 +2116,18 @@ async def list_tools() -> List[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "contract_id": {"type": "string", "description": "Token contract ID (e.g. SP...address.contract-name)"},
-                    "limit": {"type": "integer", "description": "Max results (default: 50)"},
-                    "offset": {"type": "integer", "description": "Pagination offset (default: 0)"},
+                    "contract_id": {
+                        "type": "string",
+                        "description": "Token contract ID (e.g. SP...address.contract-name)",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max results (default: 50)",
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Pagination offset (default: 0)",
+                    },
                 },
                 "required": ["contract_id"],
             },
@@ -2031,12 +2438,14 @@ async def _handle_get_accounts() -> List[TextContent]:
     accounts = await asyncio.to_thread(get_accounts, cfg)
     total_sats = sum(a["balance_sats"] for a in accounts)
     total_btc = Decimal(total_sats) / Decimal("1e8")
-    return _ok_response({
-        "accounts": accounts,
-        "total_balance_sats": total_sats,
-        "total_balance_btc": str(total_btc),
-        "network": cfg.network,
-    })
+    return _ok_response(
+        {
+            "accounts": accounts,
+            "total_balance_sats": total_sats,
+            "total_balance_btc": str(total_btc),
+            "network": cfg.network,
+        }
+    )
 
 
 async def _handle_get_info() -> List[TextContent]:
@@ -2054,16 +2463,16 @@ async def _handle_get_balance() -> List[TextContent]:
     try:
         cfg = await asyncio.to_thread(BTCConfig.from_env)
         accounts = await asyncio.to_thread(get_accounts, cfg)
-        
+
         # Aggregate wallet-wide balance from all accounts
         total_confirmed_sats = sum(acc.get("confirmed_sats", 0) for acc in accounts)
         total_unconfirmed_sats = sum(acc.get("unconfirmed_sats", 0) for acc in accounts)
         total_sats = total_confirmed_sats + total_unconfirmed_sats
-        
+
         balance_btc = Decimal(total_sats) / Decimal("1e8")
         confirmed_btc = Decimal(total_confirmed_sats) / Decimal("1e8")
         unconfirmed_btc = Decimal(total_unconfirmed_sats) / Decimal("1e8")
-        
+
         result = {
             "success": True,
             "balance_btc": str(balance_btc),
@@ -2194,12 +2603,14 @@ async def _handle_send_transfer_multi(arguments: dict[str, Any]) -> List[TextCon
     txid = await asyncio.to_thread(
         send_transfer_multi, cfg, recipients, max_fee_sats, memo, dry_run
     )
-    return _ok_response({
-        "txid": txid,
-        "num_recipients": len(recipients),
-        "dry_run": bool(dry_run if dry_run is not None else cfg.dry_run_default),
-        "network": cfg.network,
-    })
+    return _ok_response(
+        {
+            "txid": txid,
+            "num_recipients": len(recipients),
+            "dry_run": bool(dry_run if dry_run is not None else cfg.dry_run_default),
+            "network": cfg.network,
+        }
+    )
 
 
 async def _handle_send_max(arguments: dict[str, Any]) -> List[TextContent]:
@@ -2211,9 +2622,7 @@ async def _handle_send_max(arguments: dict[str, Any]) -> List[TextContent]:
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
 
-    result = await asyncio.to_thread(
-        send_max_btc, cfg, to_address, fee_rate, dry_run
-    )
+    result = await asyncio.to_thread(send_max_btc, cfg, to_address, fee_rate, dry_run)
     result["network"] = cfg.network
     return _ok_response(result)
 
@@ -2224,9 +2633,7 @@ async def _handle_combine_utxos(arguments: dict[str, Any]) -> List[TextContent]:
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
 
-    result = await asyncio.to_thread(
-        combine_utxos, cfg, to_address, fee_rate, dry_run
-    )
+    result = await asyncio.to_thread(combine_utxos, cfg, to_address, fee_rate, dry_run)
     result["network"] = cfg.network
     return _ok_response(result)
 
@@ -2262,14 +2669,14 @@ async def _handle_sign_batch_psbt(arguments: dict[str, Any]) -> List[TextContent
     broadcast = arguments.get("broadcast", False)
     dry_run = arguments.get("dry_run")
 
-    results = await asyncio.to_thread(
-        sign_batch_psbt, cfg, psbts, broadcast, dry_run
+    results = await asyncio.to_thread(sign_batch_psbt, cfg, psbts, broadcast, dry_run)
+    return _ok_response(
+        {
+            "results": results,
+            "count": len(results),
+            "network": cfg.network,
+        }
     )
-    return _ok_response({
-        "results": results,
-        "count": len(results),
-        "network": cfg.network,
-    })
 
 
 async def _handle_decode_psbt(arguments: dict[str, Any]) -> List[TextContent]:
@@ -2295,9 +2702,7 @@ async def _handle_sign_message(arguments: dict[str, Any]) -> List[TextContent]:
     protocol = arguments.get("protocol", "ecdsa")
     address_type = arguments.get("address_type")
 
-    result = await asyncio.to_thread(
-        sign_message, cfg, message, protocol, address_type
-    )
+    result = await asyncio.to_thread(sign_message, cfg, message, protocol, address_type)
     return _ok_response(result)
 
 
@@ -2306,7 +2711,9 @@ async def _handle_verify_message(arguments: dict[str, Any]) -> List[TextContent]
     signature = arguments.get("signature", "")
     address = arguments.get("address", "")
     if not all([message, signature, address]):
-        return _error_response("Missing required parameters: message, signature, address.")
+        return _error_response(
+            "Missing required parameters: message, signature, address."
+        )
 
     result = await asyncio.to_thread(verify_message, message, signature, address)
     return _ok_response(result)
@@ -2351,13 +2758,15 @@ async def _handle_list_utxos(arguments: dict[str, Any]) -> List[TextContent]:
         list_utxos, cfg, address_type, min_value_sats, confirmed_only
     )
     total_sats = sum(u["value_sats"] for u in utxos)
-    return _ok_response({
-        "utxos": utxos,
-        "count": len(utxos),
-        "total_sats": total_sats,
-        "total_btc": str(Decimal(total_sats) / Decimal("1e8")),
-        "network": cfg.network,
-    })
+    return _ok_response(
+        {
+            "utxos": utxos,
+            "count": len(utxos),
+            "total_sats": total_sats,
+            "total_btc": str(Decimal(total_sats) / Decimal("1e8")),
+            "network": cfg.network,
+        }
+    )
 
 
 async def _handle_get_utxo_details(arguments: dict[str, Any]) -> List[TextContent]:
@@ -2446,7 +2855,11 @@ async def _handle_stx_preview_transfer(arguments: dict[str, Any]) -> List[TextCo
 
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
-        stx_preview_transfer, cfg, recipient, int(amount_ustx), arguments.get("memo", "")
+        stx_preview_transfer,
+        cfg,
+        recipient,
+        int(amount_ustx),
+        arguments.get("memo", ""),
     )
     return _ok_response(result)
 
@@ -2465,8 +2878,13 @@ async def _handle_stx_transfer_sip10_ft(arguments: dict[str, Any]) -> List[TextC
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_transfer_sip10_ft,
-        cfg, recipient, asset, int(amount),
-        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+        cfg,
+        recipient,
+        asset,
+        int(amount),
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2485,8 +2903,13 @@ async def _handle_stx_transfer_sip9_nft(arguments: dict[str, Any]) -> List[TextC
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_transfer_sip9_nft,
-        cfg, recipient, asset, asset_id,
-        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+        cfg,
+        recipient,
+        asset,
+        asset_id,
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2510,9 +2933,14 @@ async def _handle_stx_call_contract(arguments: dict[str, Any]) -> List[TextConte
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_call_contract,
-        cfg, contract_address, contract_name, function_name,
+        cfg,
+        contract_address,
+        contract_name,
+        function_name,
         arguments.get("function_args"),
-        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2528,9 +2956,13 @@ async def _handle_stx_deploy_contract(arguments: dict[str, Any]) -> List[TextCon
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_deploy_contract,
-        cfg, contract_name, clarity_code,
+        cfg,
+        contract_name,
+        clarity_code,
         arguments.get("clarity_version", 2),
-        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2549,8 +2981,12 @@ async def _handle_stx_read_contract(arguments: dict[str, Any]) -> List[TextConte
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_read_contract,
-        cfg, contract_address, contract_name, function_name,
-        arguments.get("function_args"), arguments.get("sender"),
+        cfg,
+        contract_address,
+        contract_name,
+        function_name,
+        arguments.get("function_args"),
+        arguments.get("sender"),
     )
     return _ok_response(result)
 
@@ -2578,7 +3014,9 @@ async def _handle_stx_sign_transactions(arguments: dict[str, Any]) -> List[TextC
 
     cfg = await asyncio.to_thread(STXConfig.from_env)
     results = await asyncio.to_thread(stx_sign_transactions, cfg, tx_hexes)
-    return _ok_response({"results": results, "count": len(results), "network": cfg.network})
+    return _ok_response(
+        {"results": results, "count": len(results), "network": cfg.network}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -2597,7 +3035,9 @@ async def _handle_stx_sign_message(arguments: dict[str, Any]) -> List[TextConten
     return _ok_response(result)
 
 
-async def _handle_stx_sign_structured_message(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_sign_structured_message(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     domain = arguments.get("domain", "")
     message = arguments.get("message", "")
     if not domain:
@@ -2620,21 +3060,25 @@ async def _handle_stx_get_nonce(arguments: dict[str, Any]) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     address = (arguments.get("address") or "").strip() or None
     nonce = await asyncio.to_thread(stx_get_nonce, cfg, address)
-    return _ok_response({
-        "address": address or cfg.stx_address,
-        "nonce": nonce,
-        "network": cfg.network,
-    })
+    return _ok_response(
+        {
+            "address": address or cfg.stx_address,
+            "nonce": nonce,
+            "network": cfg.network,
+        }
+    )
 
 
 async def _handle_stx_estimate_fee() -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     fee = await asyncio.to_thread(stx_estimate_fee, cfg)
-    return _ok_response({
-        "fee_ustx": fee,
-        "fee_stx": str(Decimal(fee) / Decimal("1000000")),
-        "network": cfg.network,
-    })
+    return _ok_response(
+        {
+            "fee_ustx": fee,
+            "fee_stx": str(Decimal(fee) / Decimal("1000000")),
+            "network": cfg.network,
+        }
+    )
 
 
 async def _handle_stx_update_profile(arguments: dict[str, Any]) -> List[TextContent]:
@@ -2644,8 +3088,12 @@ async def _handle_stx_update_profile(arguments: dict[str, Any]) -> List[TextCont
 
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
-        stx_update_profile, cfg, person,
-        arguments.get("fee"), arguments.get("nonce"), arguments.get("dry_run"),
+        stx_update_profile,
+        cfg,
+        person,
+        arguments.get("fee"),
+        arguments.get("nonce"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2664,7 +3112,9 @@ async def _handle_ord_get_inscriptions(arguments: dict[str, Any]) -> List[TextCo
     return _ok_response(result)
 
 
-async def _handle_ord_get_inscription_details(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ord_get_inscription_details(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     inscription_id = (arguments.get("inscription_id") or "").strip()
     if not inscription_id:
         return _error_response("Missing 'inscription_id' parameter.")
@@ -2680,18 +3130,24 @@ async def _handle_ord_send_inscriptions(arguments: dict[str, Any]) -> List[TextC
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
-    result = await asyncio.to_thread(ord_send_inscriptions, cfg, transfers, fee_rate, dry_run)
+    result = await asyncio.to_thread(
+        ord_send_inscriptions, cfg, transfers, fee_rate, dry_run
+    )
     return _ok_response(result)
 
 
-async def _handle_ord_send_inscriptions_split(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ord_send_inscriptions_split(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     transfers = arguments.get("transfers")
     if not transfers or not isinstance(transfers, list):
         return _error_response("Missing or invalid 'transfers' array.")
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
-    result = await asyncio.to_thread(ord_send_inscriptions_split, cfg, transfers, fee_rate, dry_run)
+    result = await asyncio.to_thread(
+        ord_send_inscriptions_split, cfg, transfers, fee_rate, dry_run
+    )
     return _ok_response(result)
 
 
@@ -2702,7 +3158,9 @@ async def _handle_ord_extract_from_utxo(arguments: dict[str, Any]) -> List[TextC
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
-    result = await asyncio.to_thread(ord_extract_from_utxo, cfg, outpoint, fee_rate, dry_run)
+    result = await asyncio.to_thread(
+        ord_extract_from_utxo, cfg, outpoint, fee_rate, dry_run
+    )
     return _ok_response(result)
 
 
@@ -2711,7 +3169,9 @@ async def _handle_ord_recover_bitcoin(arguments: dict[str, Any]) -> List[TextCon
     outpoint = (arguments.get("outpoint") or "").strip() or None
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
-    result = await asyncio.to_thread(ord_recover_bitcoin, cfg, outpoint, fee_rate, dry_run)
+    result = await asyncio.to_thread(
+        ord_recover_bitcoin, cfg, outpoint, fee_rate, dry_run
+    )
     return _ok_response(result)
 
 
@@ -2720,7 +3180,9 @@ async def _handle_ord_recover_ordinals(arguments: dict[str, Any]) -> List[TextCo
     outpoint = (arguments.get("outpoint") or "").strip() or None
     fee_rate = arguments.get("fee_rate")
     dry_run = arguments.get("dry_run")
-    result = await asyncio.to_thread(ord_recover_ordinals, cfg, outpoint, fee_rate, dry_run)
+    result = await asyncio.to_thread(
+        ord_recover_ordinals, cfg, outpoint, fee_rate, dry_run
+    )
     return _ok_response(result)
 
 
@@ -2748,7 +3210,9 @@ async def _handle_swap_get_quote(arguments: dict[str, Any]) -> List[TextContent]
 
     cfg = await asyncio.to_thread(STXConfig.from_env)
     protocol = arguments.get("protocol", "alex")
-    result = await asyncio.to_thread(swap_get_quote, cfg, token_in, token_out, int(amount), protocol)
+    result = await asyncio.to_thread(
+        swap_get_quote, cfg, token_in, token_out, int(amount), protocol
+    )
     return _ok_response(result)
 
 
@@ -2765,8 +3229,13 @@ async def _handle_swap_execute(arguments: dict[str, Any]) -> List[TextContent]:
 
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
-        swap_execute, cfg, token_in, token_out, int(amount),
-        arguments.get("min_output"), arguments.get("protocol", "alex"),
+        swap_execute,
+        cfg,
+        token_in,
+        token_out,
+        int(amount),
+        arguments.get("min_output"),
+        arguments.get("protocol", "alex"),
         arguments.get("dry_run"),
     )
     if isinstance(result, dict) and result.get("ok") is False:
@@ -2793,7 +3262,9 @@ async def _handle_sbtc_bridge_deposit(arguments: dict[str, Any]) -> List[TextCon
     if amount_sats is None:
         return _error_response("Missing 'amount_sats' parameter.")
     cfg = await asyncio.to_thread(STXConfig.from_env)
-    result = await asyncio.to_thread(sbtc_bridge_deposit, cfg, int(amount_sats), arguments.get("dry_run"))
+    result = await asyncio.to_thread(
+        sbtc_bridge_deposit, cfg, int(amount_sats), arguments.get("dry_run")
+    )
     return _ok_response(result)
 
 
@@ -2805,7 +3276,13 @@ async def _handle_sbtc_bridge_withdraw(arguments: dict[str, Any]) -> List[TextCo
     if not btc_address:
         return _error_response("Missing 'btc_address' parameter.")
     cfg = await asyncio.to_thread(STXConfig.from_env)
-    result = await asyncio.to_thread(sbtc_bridge_withdraw, cfg, int(amount_sats), btc_address, arguments.get("dry_run"))
+    result = await asyncio.to_thread(
+        sbtc_bridge_withdraw,
+        cfg,
+        int(amount_sats),
+        btc_address,
+        arguments.get("dry_run"),
+    )
     return _ok_response(result)
 
 
@@ -2824,15 +3301,21 @@ async def _handle_stx_stack(arguments: dict[str, Any]) -> List[TextContent]:
         return _error_response("Missing 'pox_address' parameter.")
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
-        stx_stack, cfg, int(amount_ustx), pox_address,
-        arguments.get("num_cycles", 1), arguments.get("dry_run"),
+        stx_stack,
+        cfg,
+        int(amount_ustx),
+        pox_address,
+        arguments.get("num_cycles", 1),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
 
 async def _handle_stx_revoke_delegation(arguments: dict[str, Any]) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
-    result = await asyncio.to_thread(stx_revoke_delegation, cfg, arguments.get("dry_run"))
+    result = await asyncio.to_thread(
+        stx_revoke_delegation, cfg, arguments.get("dry_run")
+    )
     return _ok_response(result)
 
 
@@ -2901,7 +3384,10 @@ async def _handle_wallet_add_network(arguments: dict[str, Any]) -> List[TextCont
     if not name:
         return _error_response("Missing 'name' parameter.")
     result = await asyncio.to_thread(
-        wallet_add_network, name, arguments.get("btc_api_url"), arguments.get("stx_api_url")
+        wallet_add_network,
+        name,
+        arguments.get("btc_api_url"),
+        arguments.get("stx_api_url"),
     )
     return _ok_response(result)
 
@@ -2940,8 +3426,12 @@ async def _handle_bns_register(arguments: dict[str, Any]) -> List[TextContent]:
         return _error_response("Missing 'name' parameter.")
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
-        bns_register, cfg, name, arguments.get("namespace", "btc"),
-        arguments.get("fee"), arguments.get("dry_run"),
+        bns_register,
+        cfg,
+        name,
+        arguments.get("namespace", "btc"),
+        arguments.get("fee"),
+        arguments.get("dry_run"),
     )
     return _ok_response(result)
 
@@ -2978,11 +3468,15 @@ async def _handle_portfolio_get_assets() -> List[TextContent]:
     return _ok_response(result)
 
 
-async def _handle_portfolio_get_collectibles(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_portfolio_get_collectibles(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     btc_cfg = await asyncio.to_thread(BTCConfig.from_env)
     stx_cfg = await asyncio.to_thread(STXConfig.from_env)
     limit = arguments.get("limit", 20)
-    result = await asyncio.to_thread(portfolio_get_collectibles, btc_cfg, stx_cfg, limit)
+    result = await asyncio.to_thread(
+        portfolio_get_collectibles, btc_cfg, stx_cfg, limit
+    )
     return _ok_response(result)
 
 
@@ -3012,7 +3506,9 @@ async def _handle_ledger_sign_psbt(arguments: dict[str, Any]) -> List[TextConten
     return _ok_response(result)
 
 
-async def _handle_ledger_get_stx_addresses(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ledger_get_stx_addresses(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     account = arguments.get("account", 0)
     display = arguments.get("display", False)
     interface = arguments.get("interface", "hid")
@@ -3022,7 +3518,9 @@ async def _handle_ledger_get_stx_addresses(arguments: dict[str, Any]) -> List[Te
     return _ok_response(result)
 
 
-async def _handle_ledger_sign_stx_transaction(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ledger_sign_stx_transaction(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     tx_hex = (arguments.get("tx_hex") or "").strip()
     if not tx_hex:
         return _error_response("Missing 'tx_hex' parameter.")
@@ -3039,7 +3537,9 @@ async def _handle_ledger_sign_stx_transaction(arguments: dict[str, Any]) -> List
 # ===========================================================================
 
 
-async def _handle_ord_create_inscription(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ord_create_inscription(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     content_type = (arguments.get("content_type") or "").strip()
     content = arguments.get("content", "")
     if not content_type:
@@ -3049,8 +3549,10 @@ async def _handle_ord_create_inscription(arguments: dict[str, Any]) -> List[Text
 
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     result = await asyncio.to_thread(
-        ord_create_inscription, cfg,
-        content_type, content,
+        ord_create_inscription,
+        cfg,
+        content_type,
+        content,
         arguments.get("content_encoding", "utf-8"),
         (arguments.get("recipient") or "").strip() or None,
         arguments.get("fee_rate"),
@@ -3059,7 +3561,9 @@ async def _handle_ord_create_inscription(arguments: dict[str, Any]) -> List[Text
     return _ok_response(result)
 
 
-async def _handle_ord_create_repeat_inscriptions(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_ord_create_repeat_inscriptions(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     content_type = (arguments.get("content_type") or "").strip()
     contents = arguments.get("contents")
     if not content_type:
@@ -3069,8 +3573,10 @@ async def _handle_ord_create_repeat_inscriptions(arguments: dict[str, Any]) -> L
 
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     result = await asyncio.to_thread(
-        ord_create_repeat_inscriptions, cfg,
-        content_type, contents,
+        ord_create_repeat_inscriptions,
+        cfg,
+        content_type,
+        contents,
         arguments.get("content_encoding", "utf-8"),
         (arguments.get("recipient") or "").strip() or None,
         arguments.get("fee_rate"),
@@ -3102,7 +3608,9 @@ async def _handle_buy_get_quote(arguments: dict[str, Any]) -> List[TextContent]:
 # -- 6.1 Enhanced Transaction Queries --
 
 
-async def _handle_stx_query_transactions(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_query_transactions(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     cfg = await asyncio.to_thread(BTCConfig.from_env)
     result = await asyncio.to_thread(
         stx_query_transactions,
@@ -3116,7 +3624,9 @@ async def _handle_stx_query_transactions(arguments: dict[str, Any]) -> List[Text
     return _ok_response(result)
 
 
-async def _handle_stx_query_transactions_by_contract(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_query_transactions_by_contract(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     contract_id = (arguments.get("contract_id") or "").strip()
     if not contract_id:
         return _error_response("Missing 'contract_id' parameter.")
@@ -3135,7 +3645,9 @@ async def _handle_stx_query_transactions_by_contract(arguments: dict[str, Any]) 
 # -- 6.2 Mempool Operations --
 
 
-async def _handle_stx_mempool_list_pending(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_mempool_list_pending(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_mempool_list_pending,
@@ -3153,7 +3665,9 @@ async def _handle_stx_mempool_get_stats() -> List[TextContent]:
     return _ok_response(result)
 
 
-async def _handle_stx_mempool_get_dropped(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_mempool_get_dropped(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_mempool_get_dropped,
@@ -3178,7 +3692,9 @@ async def _handle_stx_get_recent_blocks(arguments: dict[str, Any]) -> List[TextC
     return _ok_response(result)
 
 
-async def _handle_stx_get_block_by_height(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_get_block_by_height(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     height = arguments.get("height")
     if height is None:
         return _error_response("Missing 'height' parameter.")
@@ -3196,7 +3712,9 @@ async def _handle_stx_get_block_by_hash(arguments: dict[str, Any]) -> List[TextC
     return _ok_response(result)
 
 
-async def _handle_stx_get_stacks_blocks_for_bitcoin_block(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_get_stacks_blocks_for_bitcoin_block(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     bitcoin_height = arguments.get("bitcoin_height")
     if bitcoin_height is None:
         return _error_response("Missing 'bitcoin_height' parameter.")
@@ -3214,7 +3732,9 @@ async def _handle_stx_get_stacks_blocks_for_bitcoin_block(arguments: dict[str, A
 # -- 6.4 Contract Event Monitoring --
 
 
-async def _handle_stx_get_contract_events(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_get_contract_events(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     contract_id = (arguments.get("contract_id") or "").strip()
     if not contract_id:
         return _error_response("Missing 'contract_id' parameter.")
@@ -3229,7 +3749,9 @@ async def _handle_stx_get_contract_events(arguments: dict[str, Any]) -> List[Tex
     return _ok_response(result)
 
 
-async def _handle_stx_get_address_asset_events(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_get_address_asset_events(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     cfg = await asyncio.to_thread(STXConfig.from_env)
     result = await asyncio.to_thread(
         stx_get_address_asset_events,
@@ -3244,7 +3766,9 @@ async def _handle_stx_get_address_asset_events(arguments: dict[str, Any]) -> Lis
 # -- 6.5 Token Metadata --
 
 
-async def _handle_stx_get_token_metadata(arguments: dict[str, Any]) -> List[TextContent]:
+async def _handle_stx_get_token_metadata(
+    arguments: dict[str, Any],
+) -> List[TextContent]:
     contract_id = (arguments.get("contract_id") or "").strip()
     if not contract_id:
         return _error_response("Missing 'contract_id' parameter.")

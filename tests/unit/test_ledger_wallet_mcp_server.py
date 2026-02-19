@@ -69,6 +69,7 @@ def test_serialize_bip32_path_hardened():
     assert result[0] == 5
     # Check that first index is 44 + 0x80000000
     import struct
+
     idx = struct.unpack_from(">I", result, 1)[0]
     assert idx == 44 + 0x80000000
 
@@ -81,15 +82,26 @@ def test_serialize_bip32_path_hardened():
 def test_ledger_get_addresses_mock(monkeypatch):
     """Test with mocked transport."""
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("C", (), {"from_env": classmethod(_mk_btc)}),
     )
 
     def mock_get_addrs(network, account, display, interface):
         return {
             "addresses": [
-                {"symbol": "BTC", "type": "p2wpkh", "address": "tb1qmock", "derivationPath": "m/84'/1'/0'/0/0"},
-                {"symbol": "BTC", "type": "p2tr", "address": "tb1pmock", "derivationPath": "m/86'/1'/0'/0/0"},
+                {
+                    "symbol": "BTC",
+                    "type": "p2wpkh",
+                    "address": "tb1qmock",
+                    "derivationPath": "m/84'/1'/0'/0/0",
+                },
+                {
+                    "symbol": "BTC",
+                    "type": "p2tr",
+                    "address": "tb1pmock",
+                    "derivationPath": "m/86'/1'/0'/0/0",
+                },
             ],
             "account": account,
             "network": network,
@@ -112,9 +124,7 @@ def test_ledger_get_addresses_no_device():
     monkeypatch_obj = None
     try:
         # This should fail with a connection error since no Ledger is attached
-        result = ledger_wallet.ledger_get_addresses(
-            network="testnet", interface="tcp"
-        )
+        result = ledger_wallet.ledger_get_addresses(network="testnet", interface="tcp")
         # If it somehow succeeds (e.g., something listening on port 9999), that's OK
     except RuntimeError as e:
         assert "Failed to connect" in str(e) or "Ledger" in str(e)
@@ -134,7 +144,8 @@ def test_ledger_sign_psbt_missing_param():
 
 def test_ledger_sign_psbt_mock(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("C", (), {"from_env": classmethod(_mk_btc)}),
     )
 
@@ -179,7 +190,9 @@ def test_ledger_sign_stx_tx_mock(monkeypatch):
 
     monkeypatch.setattr(server, "ledger_sign_stx_transaction", mock_sign)
 
-    response = asyncio.run(server._handle_ledger_sign_stx_transaction({"tx_hex": "aabb"}))
+    response = asyncio.run(
+        server._handle_ledger_sign_stx_transaction({"tx_hex": "aabb"})
+    )
     payload = _parse(response)
 
     assert payload["success"] is True

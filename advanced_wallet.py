@@ -36,11 +36,17 @@ BTCNetwork = Literal["mainnet", "testnet"]
 
 
 def _mempool_base(network: BTCNetwork) -> str:
-    return "https://mempool.space" if network == "mainnet" else "https://mempool.space/testnet"
+    return (
+        "https://mempool.space"
+        if network == "mainnet"
+        else "https://mempool.space/testnet"
+    )
 
 
 def _hiro_base(network: BTCNetwork) -> str:
-    return "https://api.hiro.so" if network == "mainnet" else "https://api.testnet.hiro.so"
+    return (
+        "https://api.hiro.so" if network == "mainnet" else "https://api.testnet.hiro.so"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -97,17 +103,21 @@ def _get_btc_tx_history(cfg: BTCConfig, limit: int = 20) -> list[dict[str, Any]]
     results = []
     for tx in txs[:limit]:
         status = tx.get("status", {})
-        results.append({
-            "txid": tx.get("txid", ""),
-            "confirmed": status.get("confirmed", False),
-            "block_height": status.get("block_height"),
-            "block_time": status.get("block_time"),
-            "fee": tx.get("fee", 0),
-            "size": tx.get("size", 0),
-            "value_in": sum(v.get("prevout", {}).get("value", 0) for v in tx.get("vin", [])),
-            "value_out": sum(v.get("value", 0) for v in tx.get("vout", [])),
-            "chain": "btc",
-        })
+        results.append(
+            {
+                "txid": tx.get("txid", ""),
+                "confirmed": status.get("confirmed", False),
+                "block_height": status.get("block_height"),
+                "block_time": status.get("block_time"),
+                "fee": tx.get("fee", 0),
+                "size": tx.get("size", 0),
+                "value_in": sum(
+                    v.get("prevout", {}).get("value", 0) for v in tx.get("vin", [])
+                ),
+                "value_out": sum(v.get("value", 0) for v in tx.get("vout", [])),
+                "chain": "btc",
+            }
+        )
     return results
 
 
@@ -120,6 +130,7 @@ def _get_stx_tx_history(
     if not stx_address:
         try:
             from stx_wallet import STXConfig
+
             stx_cfg = STXConfig.from_env()
             stx_address = stx_cfg.stx_address
         except Exception:
@@ -135,16 +146,18 @@ def _get_stx_tx_history(
 
     results = []
     for tx in data.get("results", []):
-        results.append({
-            "txid": tx.get("tx_id", ""),
-            "tx_type": tx.get("tx_type", ""),
-            "status": tx.get("tx_status", ""),
-            "block_height": tx.get("block_height"),
-            "burn_block_time": tx.get("burn_block_time"),
-            "fee_ustx": tx.get("fee_rate", 0),
-            "sender": tx.get("sender_address", ""),
-            "chain": "stx",
-        })
+        results.append(
+            {
+                "txid": tx.get("tx_id", ""),
+                "tx_type": tx.get("tx_type", ""),
+                "status": tx.get("tx_status", ""),
+                "block_height": tx.get("block_height"),
+                "burn_block_time": tx.get("burn_block_time"),
+                "fee_ustx": tx.get("fee_rate", 0),
+                "sender": tx.get("sender_address", ""),
+                "chain": "stx",
+            }
+        )
     return results
 
 
@@ -159,6 +172,7 @@ def _resolve_stx_address(cfg: BTCConfig) -> str:
     if not stx_address:
         try:
             from stx_wallet import STXConfig
+
             stx_cfg = STXConfig.from_env()
             stx_address = stx_cfg.stx_address
         except Exception:
@@ -203,20 +217,22 @@ def stx_query_transactions(
         this_type = tx_obj.get("tx_type", "")
         if tx_type and this_type != tx_type:
             continue
-        results.append({
-            "txid": tx_obj.get("tx_id", ""),
-            "tx_type": this_type,
-            "status": tx_obj.get("tx_status", ""),
-            "block_height": tx_obj.get("block_height"),
-            "block_hash": tx_obj.get("block_hash", ""),
-            "burn_block_time": tx_obj.get("burn_block_time"),
-            "burn_block_time_iso": tx_obj.get("burn_block_time_iso", ""),
-            "fee_rate": tx_obj.get("fee_rate", "0"),
-            "nonce": tx_obj.get("nonce"),
-            "sender_address": tx_obj.get("sender_address", ""),
-            "sponsor_address": tx_obj.get("sponsor_address"),
-            "is_unanchored": tx_obj.get("is_unanchored", False),
-        })
+        results.append(
+            {
+                "txid": tx_obj.get("tx_id", ""),
+                "tx_type": this_type,
+                "status": tx_obj.get("tx_status", ""),
+                "block_height": tx_obj.get("block_height"),
+                "block_hash": tx_obj.get("block_hash", ""),
+                "burn_block_time": tx_obj.get("burn_block_time"),
+                "burn_block_time_iso": tx_obj.get("burn_block_time_iso", ""),
+                "fee_rate": tx_obj.get("fee_rate", "0"),
+                "nonce": tx_obj.get("nonce"),
+                "sender_address": tx_obj.get("sender_address", ""),
+                "sponsor_address": tx_obj.get("sponsor_address"),
+                "is_unanchored": tx_obj.get("is_unanchored", False),
+            }
+        )
 
     return {
         "address": addr,
@@ -245,9 +261,7 @@ def stx_query_transactions_by_contract(
     """
     url = f"{_hiro_base(cfg.network)}/extended/v1/address/{contract_id}/transactions"
     try:
-        resp = requests.get(
-            url, params={"limit": limit, "offset": offset}, timeout=15
-        )
+        resp = requests.get(url, params={"limit": limit, "offset": offset}, timeout=15)
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
@@ -263,16 +277,18 @@ def stx_query_transactions_by_contract(
             if call_info.get("function_name") != function_name:
                 continue
 
-        results.append({
-            "txid": tx.get("tx_id", ""),
-            "tx_type": tx.get("tx_type", ""),
-            "status": tx.get("tx_status", ""),
-            "block_height": tx.get("block_height"),
-            "burn_block_time": tx.get("burn_block_time"),
-            "fee_rate": tx.get("fee_rate", "0"),
-            "sender_address": tx.get("sender_address", ""),
-            "contract_call": tx.get("contract_call"),
-        })
+        results.append(
+            {
+                "txid": tx.get("tx_id", ""),
+                "tx_type": tx.get("tx_type", ""),
+                "status": tx.get("tx_status", ""),
+                "block_height": tx.get("block_height"),
+                "burn_block_time": tx.get("burn_block_time"),
+                "fee_rate": tx.get("fee_rate", "0"),
+                "sender_address": tx.get("sender_address", ""),
+                "contract_call": tx.get("contract_call"),
+            }
+        )
 
     return {
         "contract_id": contract_id,
@@ -393,7 +409,9 @@ def _get_btc_tx_status(cfg: BTCConfig, txid: str) -> dict[str, Any]:
         "fee": tx.get("fee", 0),
         "size": tx.get("size", 0),
         "weight": tx.get("weight", 0),
-        "rbf": any(vin.get("sequence", 0xFFFFFFFF) < 0xFFFFFFFE for vin in tx.get("vin", [])),
+        "rbf": any(
+            vin.get("sequence", 0xFFFFFFFF) < 0xFFFFFFFE for vin in tx.get("vin", [])
+        ),
         "network": cfg.network,
     }
 
@@ -495,7 +513,9 @@ def tx_speed_up(
     for i, vout in enumerate(vouts):
         addr = vout.get("scriptpubkey_address", "")
         if addr in our_addrs:
-            if change_idx is None or vout.get("value", 0) > vouts[change_idx].get("value", 0):
+            if change_idx is None or vout.get("value", 0) > vouts[change_idx].get(
+                "value", 0
+            ):
                 change_idx = i
 
     if change_idx is None:
@@ -511,19 +531,23 @@ def tx_speed_up(
         if i == change_idx:
             val -= fee_increase
         if val > 0:
-            recipients.append({
-                "address": vout.get("scriptpubkey_address", ""),
-                "amount_sats": val,
-            })
+            recipients.append(
+                {
+                    "address": vout.get("scriptpubkey_address", ""),
+                    "amount_sats": val,
+                }
+            )
 
     # Build input UTXOs from original transaction
     input_utxos = []
     for vin in vins:
-        input_utxos.append({
-            "txid": vin.get("txid", ""),
-            "vout": vin.get("vout", 0),
-            "value": vin.get("prevout", {}).get("value", 0),
-        })
+        input_utxos.append(
+            {
+                "txid": vin.get("txid", ""),
+                "vout": vin.get("vout", 0),
+                "value": vin.get("prevout", {}).get("value", 0),
+            }
+        )
 
     p2wpkh = next((c for c in candidates if c.get("addr_type") == "p2wpkh"), None)
     if not p2wpkh:
@@ -595,7 +619,9 @@ def tx_cancel(
 
     send_back = total_in - cancel_fee
     if send_back <= 546:
-        raise RuntimeError("Not enough value to create a cancel transaction after fees.")
+        raise RuntimeError(
+            "Not enough value to create a cancel transaction after fees."
+        )
 
     candidates = cfg.candidate_wifs or []
     p2wpkh = next((c for c in candidates if c.get("addr_type") == "p2wpkh"), None)
@@ -603,11 +629,14 @@ def tx_cancel(
         raise RuntimeError("No P2WPKH key for signing cancel transaction.")
     our_addr = p2wpkh.get("address", "")
 
-    input_utxos = [{
-        "txid": vin.get("txid", ""),
-        "vout": vin.get("vout", 0),
-        "value": vin.get("prevout", {}).get("value", 0),
-    } for vin in vins]
+    input_utxos = [
+        {
+            "txid": vin.get("txid", ""),
+            "vout": vin.get("vout", 0),
+            "value": vin.get("prevout", {}).get("value", 0),
+        }
+        for vin in vins
+    ]
 
     raw_hex = _build_native_segwit_tx_multi(
         wif=p2wpkh["wif"],

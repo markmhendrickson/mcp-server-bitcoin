@@ -239,11 +239,13 @@ def portfolio_get_summary(
         sats = sum(int(u.get("value", 0)) for u in utxos)
         total_btc_sats += sats
         if sats > 0:
-            btc_accounts.append({
-                "type": c.get("addr_type", "unknown"),
-                "address": addr,
-                "balance_sats": sats,
-            })
+            btc_accounts.append(
+                {
+                    "type": c.get("addr_type", "unknown"),
+                    "address": addr,
+                    "balance_sats": sats,
+                }
+            )
 
     total_btc = Decimal(total_btc_sats) / Decimal("1e8")
 
@@ -313,35 +315,45 @@ def portfolio_get_assets(
         total_btc_sats += sats
 
     if total_btc_sats > 0:
-        assets.append({
-            "symbol": "BTC",
-            "name": "Bitcoin",
-            "balance": str(Decimal(total_btc_sats) / Decimal("1e8")),
-            "balance_raw": total_btc_sats,
-            "chain": "bitcoin",
-        })
+        assets.append(
+            {
+                "symbol": "BTC",
+                "name": "Bitcoin",
+                "balance": str(Decimal(total_btc_sats) / Decimal("1e8")),
+                "balance_raw": total_btc_sats,
+                "chain": "bitcoin",
+            }
+        )
 
     # STX and tokens
     try:
         stx_balance = stx_get_balance(stx_cfg)
         stx_ustx = stx_balance.get("balance_ustx", 0)
         if stx_ustx > 0:
-            assets.append({
-                "symbol": "STX",
-                "name": "Stacks",
-                "balance": str(Decimal(stx_ustx) / Decimal("1000000")),
-                "balance_raw": stx_ustx,
-                "chain": "stacks",
-            })
+            assets.append(
+                {
+                    "symbol": "STX",
+                    "name": "Stacks",
+                    "balance": str(Decimal(stx_ustx) / Decimal("1000000")),
+                    "balance_raw": stx_ustx,
+                    "chain": "stacks",
+                }
+            )
         for ft in stx_balance.get("fungible_tokens", []):
             if int(ft.get("balance", 0)) > 0:
-                assets.append({
-                    "symbol": ft.get("token_id", "").split("::")[-1] if "::" in ft.get("token_id", "") else ft.get("token_id", ""),
-                    "name": ft.get("token_id", ""),
-                    "balance": ft.get("balance", "0"),
-                    "balance_raw": int(ft.get("balance", 0)),
-                    "chain": "stacks",
-                })
+                assets.append(
+                    {
+                        "symbol": (
+                            ft.get("token_id", "").split("::")[-1]
+                            if "::" in ft.get("token_id", "")
+                            else ft.get("token_id", "")
+                        ),
+                        "name": ft.get("token_id", ""),
+                        "balance": ft.get("balance", "0"),
+                        "balance_raw": int(ft.get("balance", 0)),
+                        "chain": "stacks",
+                    }
+                )
     except Exception:
         pass
 
@@ -364,7 +376,11 @@ def portfolio_get_collectibles(
     btc_candidates = btc_cfg.candidate_wifs or []
     taproot = next((c for c in btc_candidates if c.get("addr_type") == "p2tr"), None)
     if taproot and taproot.get("address"):
-        ord_api = "https://api.hiro.so" if btc_cfg.network == "mainnet" else "https://api.testnet.hiro.so"
+        ord_api = (
+            "https://api.hiro.so"
+            if btc_cfg.network == "mainnet"
+            else "https://api.testnet.hiro.so"
+        )
         try:
             resp = requests.get(
                 f"{ord_api}/ordinals/v1/inscriptions",
@@ -374,15 +390,17 @@ def portfolio_get_collectibles(
             resp.raise_for_status()
             data = resp.json()
             for r in data.get("results", []):
-                collectibles.append({
-                    "type": "inscription",
-                    "chain": "bitcoin",
-                    "id": r.get("id", ""),
-                    "number": r.get("number"),
-                    "content_type": r.get("content_type", ""),
-                    "address": r.get("address", ""),
-                    "value": r.get("value", "0"),
-                })
+                collectibles.append(
+                    {
+                        "type": "inscription",
+                        "chain": "bitcoin",
+                        "id": r.get("id", ""),
+                        "number": r.get("number"),
+                        "content_type": r.get("content_type", ""),
+                        "address": r.get("address", ""),
+                        "value": r.get("value", "0"),
+                    }
+                )
         except Exception:
             pass
 
@@ -392,12 +410,14 @@ def portfolio_get_collectibles(
         for nft in stx_balance.get("non_fungible_tokens", []):
             count = nft.get("count", 0)
             if count > 0:
-                collectibles.append({
-                    "type": "nft",
-                    "chain": "stacks",
-                    "id": nft.get("token_id", ""),
-                    "count": count,
-                })
+                collectibles.append(
+                    {
+                        "type": "nft",
+                        "chain": "stacks",
+                        "id": nft.get("token_id", ""),
+                        "count": count,
+                    }
+                )
     except Exception:
         pass
 

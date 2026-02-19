@@ -46,10 +46,10 @@ BTC_P1_DISPLAY = 0x01
 BTC_P1_NO_DISPLAY = 0x00
 
 # Address formats (P2 for GET_ADDRESS)
-BTC_ADDR_LEGACY = 0x00        # P2PKH
-BTC_ADDR_SEGWIT = 0x01        # P2SH-P2WPKH
-BTC_ADDR_NATIVE_SEGWIT = 0x02 # P2WPKH
-BTC_ADDR_TAPROOT = 0x03       # P2TR
+BTC_ADDR_LEGACY = 0x00  # P2PKH
+BTC_ADDR_SEGWIT = 0x01  # P2SH-P2WPKH
+BTC_ADDR_NATIVE_SEGWIT = 0x02  # P2WPKH
+BTC_ADDR_TAPROOT = 0x03  # P2TR
 
 # ---------------------------------------------------------------------------
 # Ledger APDU constants -- Stacks app
@@ -174,29 +174,35 @@ def ledger_get_addresses(
                 if sw == 0x9000 and response:
                     # Response format: address_len (1 byte) + address (ascii)
                     addr_len = response[0]
-                    address = response[1:1 + addr_len].decode("ascii")
-                    addresses.append({
-                        "symbol": "BTC",
-                        "type": cfg["type"],
-                        "address": address,
-                        "derivationPath": cfg["path"],
-                    })
+                    address = response[1 : 1 + addr_len].decode("ascii")
+                    addresses.append(
+                        {
+                            "symbol": "BTC",
+                            "type": cfg["type"],
+                            "address": address,
+                            "derivationPath": cfg["path"],
+                        }
+                    )
                 else:
-                    addresses.append({
+                    addresses.append(
+                        {
+                            "symbol": "BTC",
+                            "type": cfg["type"],
+                            "address": "",
+                            "derivationPath": cfg["path"],
+                            "error": f"Device returned SW=0x{sw:04X}",
+                        }
+                    )
+            except Exception as exc:
+                addresses.append(
+                    {
                         "symbol": "BTC",
                         "type": cfg["type"],
                         "address": "",
                         "derivationPath": cfg["path"],
-                        "error": f"Device returned SW=0x{sw:04X}",
-                    })
-            except Exception as exc:
-                addresses.append({
-                    "symbol": "BTC",
-                    "type": cfg["type"],
-                    "address": "",
-                    "derivationPath": cfg["path"],
-                    "error": str(exc),
-                })
+                        "error": str(exc),
+                    }
+                )
     finally:
         transport.close()
 
@@ -251,7 +257,7 @@ def ledger_sign_psbt(
         is_first = True
 
         while offset < len(psbt_bytes):
-            chunk = psbt_bytes[offset:offset + chunk_size]
+            chunk = psbt_bytes[offset : offset + chunk_size]
             p1 = 0x00 if is_first else 0x80  # 0x00 = first, 0x80 = continuation
             is_first = False
 
@@ -276,7 +282,11 @@ def ledger_sign_psbt(
 
     return {
         "hex": signed_hex,
-        "base64": base64.b64encode(bytes.fromhex(signed_hex)).decode("ascii") if signed_hex else "",
+        "base64": (
+            base64.b64encode(bytes.fromhex(signed_hex)).decode("ascii")
+            if signed_hex
+            else ""
+        ),
         "device": "ledger",
         "network": network,
     }
@@ -317,7 +327,9 @@ def ledger_get_stx_addresses(
         )
 
         if sw != 0x9000:
-            raise RuntimeError(f"Ledger Stacks app rejected address request: SW=0x{sw:04X}")
+            raise RuntimeError(
+                f"Ledger Stacks app rejected address request: SW=0x{sw:04X}"
+            )
 
         if not response or len(response) < 20:
             raise RuntimeError(
@@ -330,30 +342,38 @@ def ledger_get_stx_addresses(
             public_key = response[:65].hex()
             addr_len = response[65]
             if len(response) >= 66 + addr_len:
-                address = response[66:66 + addr_len].decode("ascii")
+                address = response[66 : 66 + addr_len].decode("ascii")
             else:
                 # Fallback: try to parse rest as address
                 address = response[66:].decode("ascii", errors="ignore")
         else:
             # Older format or different response structure
             public_key = response[:65].hex() if len(response) >= 65 else ""
-            address = response[65:].decode("ascii", errors="ignore") if len(response) > 65 else ""
+            address = (
+                response[65:].decode("ascii", errors="ignore")
+                if len(response) > 65
+                else ""
+            )
 
-        addresses = [{
-            "symbol": "STX",
-            "address": address,
-            "publicKey": public_key,
-            "derivationPath": derivation_path,
-        }]
+        addresses = [
+            {
+                "symbol": "STX",
+                "address": address,
+                "publicKey": public_key,
+                "derivationPath": derivation_path,
+            }
+        ]
 
     except Exception as exc:
-        addresses = [{
-            "symbol": "STX",
-            "address": "",
-            "publicKey": "",
-            "derivationPath": derivation_path,
-            "error": str(exc),
-        }]
+        addresses = [
+            {
+                "symbol": "STX",
+                "address": "",
+                "publicKey": "",
+                "derivationPath": derivation_path,
+                "error": str(exc),
+            }
+        ]
     finally:
         transport.close()
 
@@ -402,13 +422,11 @@ def ledger_sign_stx_transaction(
         offset = 0
 
         while offset < len(tx_bytes):
-            chunk = tx_bytes[offset:offset + chunk_size]
+            chunk = tx_bytes[offset : offset + chunk_size]
             remaining = len(tx_bytes) - offset - len(chunk)
             p1 = 0x02 if remaining == 0 else 0x01  # 0x02 = last chunk
 
-            sw, response = transport.exchange(
-                STX_CLA, STX_INS_SIGN_TX, p1, 0x00, chunk
-            )
+            sw, response = transport.exchange(STX_CLA, STX_INS_SIGN_TX, p1, 0x00, chunk)
 
             if sw != 0x9000:
                 raise RuntimeError(
@@ -429,7 +447,7 @@ def ledger_sign_stx_transaction(
         signed_tx = bytearray(tx_bytes)
         sig_offset = 44  # version(1) + chain_id(4) + auth_type(1) + hash_mode(1) + signer(20) + nonce(8) + fee(8) + key_encoding(1)
         if sig_offset + 1 + 65 <= len(signed_tx):
-            signed_tx[sig_offset + 1:sig_offset + 1 + 65] = bytes.fromhex(signature)
+            signed_tx[sig_offset + 1 : sig_offset + 1 + 65] = bytes.fromhex(signature)
 
         signed_hex = bytes(signed_tx).hex()
 

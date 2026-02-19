@@ -207,7 +207,13 @@ class BTCConfig:
         max_fee_sats_env: int | None = None
         fee_rate_sat_per_byte = 10
         fee_tier_raw = os.getenv("BTC_FEE_TIER", "hourFee").strip()
-        allowed_tiers = ("fastestFee", "halfHourFee", "hourFee", "economyFee", "minimumFee")
+        allowed_tiers = (
+            "fastestFee",
+            "halfHourFee",
+            "hourFee",
+            "economyFee",
+            "minimumFee",
+        )
         fee_tier = fee_tier_raw if fee_tier_raw in allowed_tiers else "hourFee"
         use_fixed_fee_rate = False
         fee_rate_env = os.getenv("BTC_FEE_RATE_SAT_PER_BYTE")
@@ -304,7 +310,9 @@ def _derive_candidate_wifs_from_mnemonic(
             "wif": ctx44.PrivateKey().ToWif(),
             "address": str(ctx44.PublicKey().ToAddress()),
             "public_key": ctx44.PublicKey().RawCompressed().ToHex(),
-            "derivation_path": "m/44'/0'/0'/0/0" if network == "mainnet" else "m/44'/1'/0'/0/0",
+            "derivation_path": (
+                "m/44'/0'/0'/0/0" if network == "mainnet" else "m/44'/1'/0'/0/0"
+            ),
         }
     )
 
@@ -324,7 +332,9 @@ def _derive_candidate_wifs_from_mnemonic(
             "wif": ctx49.PrivateKey().ToWif(),
             "address": str(ctx49.PublicKey().ToAddress()),
             "public_key": ctx49.PublicKey().RawCompressed().ToHex(),
-            "derivation_path": "m/49'/0'/0'/0/0" if network == "mainnet" else "m/49'/1'/0'/0/0",
+            "derivation_path": (
+                "m/49'/0'/0'/0/0" if network == "mainnet" else "m/49'/1'/0'/0/0"
+            ),
         }
     )
 
@@ -344,7 +354,9 @@ def _derive_candidate_wifs_from_mnemonic(
             "wif": ctx84.PrivateKey().ToWif(),
             "address": str(ctx84.PublicKey().ToAddress()),
             "public_key": ctx84.PublicKey().RawCompressed().ToHex(),
-            "derivation_path": "m/84'/0'/0'/0/0" if network == "mainnet" else "m/84'/1'/0'/0/0",
+            "derivation_path": (
+                "m/84'/0'/0'/0/0" if network == "mainnet" else "m/84'/1'/0'/0/0"
+            ),
         }
     )
 
@@ -366,7 +378,9 @@ def _derive_candidate_wifs_from_mnemonic(
             "wif": ctx86.PrivateKey().ToWif(),
             "address": str(ctx86.PublicKey().ToAddress()),
             "public_key": ctx86.PublicKey().RawCompressed().ToHex(),
-            "derivation_path": "m/86'/0'/0'/0/0" if network == "mainnet" else "m/86'/1'/0'/0/0",
+            "derivation_path": (
+                "m/86'/0'/0'/0/0" if network == "mainnet" else "m/86'/1'/0'/0/0"
+            ),
         }
     )
 
@@ -471,7 +485,7 @@ def _build_native_segwit_tx(
 
     Uses CMutableTransaction for proper witness construction.
     Based on python-bitcoinlib best practices and BIP143 (SegWit signing).
-    
+
     memo: Optional UTF-8 memo added as OP_RETURN output (max 80 bytes).
     """
     # Set network params
@@ -515,13 +529,13 @@ def _build_native_segwit_tx(
     # Recipient output
     to_addr = CBitcoinAddress(to_address)
     txouts.append(CMutableTxOut(amount_sats, to_addr.to_scriptPubKey()))
-    
+
     # OP_RETURN memo output (if provided)
     if memo:
         memo_bytes = memo.encode("utf-8")[:80]  # Max 80 bytes for OP_RETURN
         op_return_script = CScript([OP_RETURN, memo_bytes])
         txouts.append(CMutableTxOut(0, op_return_script))
-    
+
     # Change output (if above dust threshold)
     if change_sats > 546:
         change_addr = CBitcoinAddress(change_address)
@@ -571,7 +585,7 @@ def send_transaction(
     reliability. bit is not used for balance discovery or broadcasting.
 
     max_fee_sats_effective, if provided, is used as an absolute fee cap.
-    
+
     dry_run: If True, transaction will be built and signed but not broadcast.
              If None, uses cfg.dry_run_default.
     """
@@ -579,8 +593,8 @@ def send_transaction(
     if dry_run is None:
         dry_run = cfg.dry_run_default
     # Re-select the best key and UTXOs at send time in case conditions changed.
-    key, _, _, display_address, mempool_utxos, addr_type, _ = _select_best_key_for_payment(
-        cfg, amount_btc
+    key, _, _, display_address, mempool_utxos, addr_type, _ = (
+        _select_best_key_for_payment(cfg, amount_btc)
     )
 
     # Determine segwit from address type.
@@ -689,12 +703,13 @@ def send_transaction(
         # Validate transaction hex is non-empty and looks reasonable
         if not raw_hex or len(raw_hex) < 20:
             raise RuntimeError("Created transaction hex is invalid or empty")
-    
+
     # Broadcast using mempool.space so we control the network path (unless dry run).
     if dry_run:
         # In dry run mode, return a placeholder txid and don't actually broadcast
         # The txid format matches a real transaction ID but indicates it's a dry run
         import hashlib
+
         # Generate a deterministic "fake" txid from the transaction hex for dry run
         # raw_hex is a hex string, convert to bytes for hashing
         tx_bytes = bytes.fromhex(raw_hex) if isinstance(raw_hex, str) else raw_hex
@@ -704,7 +719,7 @@ def send_transaction(
             "fee_rate_sat_per_vb": fee_rate,
             "fee_sats_estimate": int(estimated_fee_sats),
         }
-    
+
     txid = _broadcast_raw_tx(raw_hex, cfg.network)
     return {
         "txid": txid,
@@ -832,9 +847,9 @@ def _select_best_key_for_payment(
             cfg.network, cfg.fee_rate_sat_per_byte, cfg.fee_tier
         )
 
-    best_info: tuple[
-        dict[str, str], Decimal, int, list[dict[str, object]]
-    ] | None = None
+    best_info: tuple[dict[str, str], Decimal, int, list[dict[str, object]]] | None = (
+        None
+    )
 
     for info in candidates:
         # Skip taproot for now; `bit` cannot safely construct P2TR spends.
@@ -879,7 +894,15 @@ def _select_best_key_for_payment(
     key = _make_key_from_wif(info["wif"], cfg.network)
     display_address = info.get("address") or key.address
     addr_type = info.get("addr_type", "unknown")
-    return key, balance_btc, fee_sats_estimate, display_address, utxos, addr_type, fee_rate
+    return (
+        key,
+        balance_btc,
+        fee_sats_estimate,
+        display_address,
+        utxos,
+        addr_type,
+        fee_rate,
+    )
 
 
 def _fetch_mempool_utxos(address: str, network: BTCCNetwork) -> list[dict[str, object]]:
@@ -987,7 +1010,7 @@ def get_accounts(cfg: BTCConfig) -> list[dict[str, Any]]:
             key = _make_key_from_wif(c["wif"], cfg.network)
             addr = key.address
         utxos = _fetch_mempool_utxos(addr, cfg.network)
-        
+
         # Split by confirmed vs unconfirmed
         confirmed_sats = 0
         unconfirmed_sats = 0
@@ -998,12 +1021,12 @@ def get_accounts(cfg: BTCConfig) -> list[dict[str, Any]]:
                 confirmed_sats += value
             else:
                 unconfirmed_sats += value
-        
+
         total_sats = confirmed_sats + unconfirmed_sats
         balance_btc = Decimal(total_sats) / Decimal("1e8")
         confirmed_btc = Decimal(confirmed_sats) / Decimal("1e8")
         unconfirmed_btc = Decimal(unconfirmed_sats) / Decimal("1e8")
-        
+
         accounts.append(
             {
                 "type": c.get("addr_type", "unknown"),
@@ -1082,7 +1105,9 @@ def send_transfer_multi(
     for r in recipients:
         amt = int(r.get("amount_sats", 0))
         if amt <= 0:
-            raise ValueError(f"Invalid amount_sats for {r.get('address', '?')}: must be > 0")
+            raise ValueError(
+                f"Invalid amount_sats for {r.get('address', '?')}: must be > 0"
+            )
         total_amount_sats += amt
 
     total_amount_btc = Decimal(total_amount_sats) / Decimal("1e8")
@@ -1148,7 +1173,11 @@ def send_transfer_multi(
     else:
         # Use bit library for other address types
         outputs = [
-            (r["address"], float(Decimal(int(r["amount_sats"])) / Decimal("1e8")), "btc")
+            (
+                r["address"],
+                float(Decimal(int(r["amount_sats"])) / Decimal("1e8")),
+                "btc",
+            )
             for r in recipients
         ]
         unspents = _build_unspent_list(selected_utxos, segwit, cfg.network)
@@ -1245,7 +1274,11 @@ def send_max_btc(
     # Build transaction
     if addr_type == "p2wpkh":
         candidate_info = next(
-            (c2 for c2 in (cfg.candidate_wifs or []) if c2.get("addr_type") == "p2wpkh"),
+            (
+                c2
+                for c2 in (cfg.candidate_wifs or [])
+                if c2.get("addr_type") == "p2wpkh"
+            ),
             None,
         )
         if not candidate_info:
@@ -1264,7 +1297,11 @@ def send_max_btc(
         unspents = _build_unspent_list(best_utxos, segwit, cfg.network)
         try:
             raw_hex = key.create_transaction(
-                outputs, unspents=unspents, combine=True, fee=fee_sats, absolute_fee=True
+                outputs,
+                unspents=unspents,
+                combine=True,
+                fee=fee_sats,
+                absolute_fee=True,
             )
         except Exception as exc:
             raise RuntimeError(f"Failed to create sweep transaction: {exc}") from exc
@@ -1321,7 +1358,9 @@ def combine_utxos(
     if len(utxos) <= 1:
         raise RuntimeError("Only 0 or 1 UTXOs found -- nothing to consolidate.")
 
-    return send_max_btc(cfg, to_address, fee_rate_override=fee_rate_override, dry_run=dry_run)
+    return send_max_btc(
+        cfg, to_address, fee_rate_override=fee_rate_override, dry_run=dry_run
+    )
 
 
 # ---- 1.3 PSBT Support ----
@@ -1476,7 +1515,11 @@ def _decode_psbt_summary(raw: bytes) -> dict[str, Any]:
             offset += val_len
         output_details.append(output_info)
 
-    is_finalized = all(inp.get("finalized", False) for inp in input_details) if input_details else False
+    is_finalized = (
+        all(inp.get("finalized", False) for inp in input_details)
+        if input_details
+        else False
+    )
 
     return {
         "num_inputs": num_inputs,
@@ -1589,9 +1632,7 @@ def sign_batch_psbt(
     """
     results = []
     for psbt_str in psbts:
-        result = sign_psbt(
-            cfg, psbt_str, broadcast=broadcast, dry_run=dry_run
-        )
+        result = sign_psbt(cfg, psbt_str, broadcast=broadcast, dry_run=dry_run)
         results.append(result)
     return results
 
@@ -1701,7 +1742,9 @@ def sign_message(
         result["address"] = addr
         return result
     else:
-        raise ValueError(f"Unsupported signing protocol: {protocol}. Use 'ecdsa' or 'bip322'.")
+        raise ValueError(
+            f"Unsupported signing protocol: {protocol}. Use 'ecdsa' or 'bip322'."
+        )
 
 
 def verify_message(
@@ -1928,7 +1971,9 @@ def get_utxo_details(
 
     vouts = tx_data.get("vout", [])
     if vout >= len(vouts):
-        raise ValueError(f"vout {vout} is out of range (transaction has {len(vouts)} outputs).")
+        raise ValueError(
+            f"vout {vout} is out of range (transaction has {len(vouts)} outputs)."
+        )
 
     output = vouts[vout]
     status = tx_data.get("status", {})
@@ -1968,7 +2013,7 @@ def _build_native_segwit_tx_multi(
     Build and sign a native SegWit (P2WPKH) transaction with multiple outputs.
 
     Extension of _build_native_segwit_tx for multi-recipient support.
-    
+
     memo: Optional UTF-8 memo added as OP_RETURN output (max 80 bytes).
     """
     if SelectParams is None:
@@ -2010,13 +2055,13 @@ def _build_native_segwit_tx_multi(
     for r in recipients:
         to_addr = CBitcoinAddress(r["address"])
         txouts.append(CMutableTxOut(int(r["amount_sats"]), to_addr.to_scriptPubKey()))
-    
+
     # OP_RETURN memo output (if provided)
     if memo:
         memo_bytes = memo.encode("utf-8")[:80]  # Max 80 bytes for OP_RETURN
         op_return_script = CScript([OP_RETURN, memo_bytes])
         txouts.append(CMutableTxOut(0, op_return_script))
-    
+
     if change_sats > 546:
         change_addr = CBitcoinAddress(change_address)
         txouts.append(CMutableTxOut(change_sats, change_addr.to_scriptPubKey()))
@@ -2055,7 +2100,9 @@ def _build_unspent_list(
         confirmations = height if confirmed else 0
         script_hex = _fetch_scriptpubkey(txid, vout_val, network)
         if not script_hex:
-            raise RuntimeError(f"Failed to fetch scriptPubKey for UTXO {txid}:{vout_val}")
+            raise RuntimeError(
+                f"Failed to fetch scriptPubKey for UTXO {txid}:{vout_val}"
+            )
         unspents.append(
             _Unspent(value, confirmations, script_hex, txid, vout_val, segwit)
         )

@@ -131,22 +131,24 @@ def ord_get_inscriptions(
     results = data.get("results", [])
     inscriptions = []
     for r in results:
-        inscriptions.append({
-            "inscriptionId": r.get("id", ""),
-            "inscriptionNumber": str(r.get("number", "")),
-            "address": r.get("address", ""),
-            "contentType": r.get("content_type", ""),
-            "contentLength": r.get("content_length", 0),
-            "mimeType": r.get("mime_type", ""),
-            "genesisTransaction": r.get("genesis_tx_id", ""),
-            "location": r.get("location", ""),
-            "output": r.get("output", ""),
-            "offset": r.get("offset", "0"),
-            "value": r.get("value", "0"),
-            "satOrdinal": r.get("sat_ordinal", ""),
-            "satRarity": r.get("sat_rarity", "common"),
-            "timestamp": r.get("timestamp", 0),
-        })
+        inscriptions.append(
+            {
+                "inscriptionId": r.get("id", ""),
+                "inscriptionNumber": str(r.get("number", "")),
+                "address": r.get("address", ""),
+                "contentType": r.get("content_type", ""),
+                "contentLength": r.get("content_length", 0),
+                "mimeType": r.get("mime_type", ""),
+                "genesisTransaction": r.get("genesis_tx_id", ""),
+                "location": r.get("location", ""),
+                "output": r.get("output", ""),
+                "offset": r.get("offset", "0"),
+                "value": r.get("value", "0"),
+                "satOrdinal": r.get("sat_ordinal", ""),
+                "satRarity": r.get("sat_rarity", "common"),
+                "timestamp": r.get("timestamp", 0),
+            }
+        )
 
     return {
         "total": data.get("total", 0),
@@ -292,11 +294,10 @@ def ord_send_inscriptions(
 
     # Find a payment UTXO to cover fees
     # Exclude UTXOs that are inscription UTXOs
-    inscription_outpoints = {
-        f"{u['txid']}:{u['vout']}" for u in inscription_utxos
-    }
+    inscription_outpoints = {f"{u['txid']}:{u['vout']}" for u in inscription_utxos}
     available_payment = [
-        u for u in payment_utxos
+        u
+        for u in payment_utxos
         if f"{u.get('txid', '')}:{u.get('vout', 0)}" not in inscription_outpoints
     ]
     available_payment.sort(key=lambda u: int(u.get("value", 0)), reverse=True)
@@ -316,30 +317,38 @@ def ord_send_inscriptions(
     # Build recipients list for the multi-output transaction
     recipients = []
     for u in inscription_utxos:
-        recipients.append({
-            "address": u["to_address"],
-            "amount_sats": u["value"],
-        })
+        recipients.append(
+            {
+                "address": u["to_address"],
+                "amount_sats": u["value"],
+            }
+        )
     # Change output
     if change_sats > INSCRIPTION_DUST:
-        recipients.append({
-            "address": payment_address,
-            "amount_sats": change_sats,
-        })
+        recipients.append(
+            {
+                "address": payment_address,
+                "amount_sats": change_sats,
+            }
+        )
 
     # Combine all inputs: inscription UTXOs + fee UTXO
     all_utxos = []
     for u in inscription_utxos:
-        all_utxos.append({
-            "txid": u["txid"],
-            "vout": u["vout"],
-            "value": u["value"],
-        })
-    all_utxos.append({
-        "txid": fee_utxo.get("txid", ""),
-        "vout": fee_utxo.get("vout", 0),
-        "value": fee_utxo_value,
-    })
+        all_utxos.append(
+            {
+                "txid": u["txid"],
+                "vout": u["vout"],
+                "value": u["value"],
+            }
+        )
+    all_utxos.append(
+        {
+            "txid": fee_utxo.get("txid", ""),
+            "vout": fee_utxo.get("vout", 0),
+            "value": fee_utxo_value,
+        }
+    )
 
     # Build and sign using P2WPKH (payment key handles fee input;
     # inscription inputs are passed through)
@@ -436,20 +445,26 @@ def ord_send_inscriptions_split(
 
         # If the UTXO is small enough (near dust), send the whole thing
         if utxo_value <= inscription_size + INSCRIPTION_DUST:
-            recipients.append({
-                "address": u["to_address"],
-                "amount_sats": utxo_value,
-            })
-            input_utxos.append({
-                "txid": u["txid"],
-                "vout": u["vout"],
-                "value": utxo_value,
-            })
-            split_details.append({
-                "inscriptionId": u["inscription_id"],
-                "split": False,
-                "sentValue": utxo_value,
-            })
+            recipients.append(
+                {
+                    "address": u["to_address"],
+                    "amount_sats": utxo_value,
+                }
+            )
+            input_utxos.append(
+                {
+                    "txid": u["txid"],
+                    "vout": u["vout"],
+                    "value": utxo_value,
+                }
+            )
+            split_details.append(
+                {
+                    "inscriptionId": u["inscription_id"],
+                    "split": False,
+                    "sentValue": utxo_value,
+                }
+            )
         else:
             # Split: send inscription range to recipient, rest back to sender
             # The inscription sits at 'offset' within the UTXO
@@ -458,41 +473,54 @@ def ord_send_inscriptions_split(
             after_sats = utxo_value - offset - inscription_sats
 
             # Inscription output to recipient
-            recipients.append({
-                "address": u["to_address"],
-                "amount_sats": inscription_sats,
-            })
+            recipients.append(
+                {
+                    "address": u["to_address"],
+                    "amount_sats": inscription_sats,
+                }
+            )
 
             # Return portions before and after the inscription to ordinals address
             if before_sats > INSCRIPTION_DUST:
-                recipients.append({
-                    "address": ordinals_address,
-                    "amount_sats": before_sats,
-                })
+                recipients.append(
+                    {
+                        "address": ordinals_address,
+                        "amount_sats": before_sats,
+                    }
+                )
             if after_sats > INSCRIPTION_DUST:
-                recipients.append({
-                    "address": ordinals_address,
-                    "amount_sats": after_sats,
-                })
+                recipients.append(
+                    {
+                        "address": ordinals_address,
+                        "amount_sats": after_sats,
+                    }
+                )
 
-            input_utxos.append({
-                "txid": u["txid"],
-                "vout": u["vout"],
-                "value": utxo_value,
-            })
-            split_details.append({
-                "inscriptionId": u["inscription_id"],
-                "split": True,
-                "sentValue": inscription_sats,
-                "returnedBefore": before_sats if before_sats > INSCRIPTION_DUST else 0,
-                "returnedAfter": after_sats if after_sats > INSCRIPTION_DUST else 0,
-            })
+            input_utxos.append(
+                {
+                    "txid": u["txid"],
+                    "vout": u["vout"],
+                    "value": utxo_value,
+                }
+            )
+            split_details.append(
+                {
+                    "inscriptionId": u["inscription_id"],
+                    "split": True,
+                    "sentValue": inscription_sats,
+                    "returnedBefore": (
+                        before_sats if before_sats > INSCRIPTION_DUST else 0
+                    ),
+                    "returnedAfter": after_sats if after_sats > INSCRIPTION_DUST else 0,
+                }
+            )
 
     # Add payment UTXO for fees
     payment_utxos = _fetch_mempool_utxos(payment_address, cfg.network)
     input_outpoints = {f"{u['txid']}:{u['vout']}" for u in input_utxos}
     available_payment = [
-        u for u in payment_utxos
+        u
+        for u in payment_utxos
         if f"{u.get('txid', '')}:{u.get('vout', 0)}" not in input_outpoints
     ]
     available_payment.sort(key=lambda u: int(u.get("value", 0)), reverse=True)
@@ -514,16 +542,20 @@ def ord_send_inscriptions_split(
 
     change_sats = fee_utxo_value - fee_sats
     if change_sats > INSCRIPTION_DUST:
-        recipients.append({
-            "address": payment_address,
-            "amount_sats": change_sats,
-        })
+        recipients.append(
+            {
+                "address": payment_address,
+                "amount_sats": change_sats,
+            }
+        )
 
-    input_utxos.append({
-        "txid": fee_utxo.get("txid", ""),
-        "vout": fee_utxo.get("vout", 0),
-        "value": fee_utxo_value,
-    })
+    input_utxos.append(
+        {
+            "txid": fee_utxo.get("txid", ""),
+            "vout": fee_utxo.get("vout", 0),
+            "value": fee_utxo_value,
+        }
+    )
 
     # Build transaction
     p2wpkh_candidate = next(
@@ -598,7 +630,9 @@ def ord_extract_from_utxo(
             params={"output": outpoint, "limit": 60},
         )
     except Exception as exc:
-        raise RuntimeError(f"Failed to query inscriptions for {outpoint}: {exc}") from exc
+        raise RuntimeError(
+            f"Failed to query inscriptions for {outpoint}: {exc}"
+        ) from exc
 
     inscriptions = data.get("results", [])
     if not inscriptions:
@@ -652,7 +686,9 @@ def ord_recover_bitcoin(
     payment_address = _get_payment_address(cfg)
 
     if ordinals_address == payment_address:
-        raise RuntimeError("Ordinals and payment addresses are the same -- nothing to recover.")
+        raise RuntimeError(
+            "Ordinals and payment addresses are the same -- nothing to recover."
+        )
 
     if fee_rate is None:
         if cfg.use_fixed_fee_rate:
@@ -671,8 +707,10 @@ def ord_recover_bitcoin(
         # Recover a specific UTXO
         parts = outpoint.split(":")
         target_utxos = [
-            u for u in all_utxos
-            if str(u.get("txid", "")) == parts[0] and int(u.get("vout", -1)) == int(parts[1])
+            u
+            for u in all_utxos
+            if str(u.get("txid", "")) == parts[0]
+            and int(u.get("vout", -1)) == int(parts[1])
         ]
         if not target_utxos:
             raise RuntimeError(f"UTXO {outpoint} not found on ordinals address.")
@@ -695,7 +733,9 @@ def ord_recover_bitcoin(
                 continue
 
     if not recoverable:
-        raise RuntimeError("No recoverable (non-inscription) UTXOs found on ordinals address.")
+        raise RuntimeError(
+            "No recoverable (non-inscription) UTXOs found on ordinals address."
+        )
 
     total_sats = sum(int(u.get("value", 0)) for u in recoverable)
     num_inputs = len(recoverable)
@@ -717,7 +757,11 @@ def ord_recover_bitcoin(
         raise RuntimeError("No P2WPKH key available for signing.")
 
     input_utxos = [
-        {"txid": u.get("txid", ""), "vout": u.get("vout", 0), "value": int(u.get("value", 0))}
+        {
+            "txid": u.get("txid", ""),
+            "vout": u.get("vout", 0),
+            "value": int(u.get("value", 0)),
+        }
         for u in recoverable
     ]
 
@@ -771,7 +815,9 @@ def ord_recover_ordinals(
     payment_address = _get_payment_address(cfg)
 
     if ordinals_address == payment_address:
-        raise RuntimeError("Ordinals and payment addresses are the same -- nothing to recover.")
+        raise RuntimeError(
+            "Ordinals and payment addresses are the same -- nothing to recover."
+        )
 
     # Get UTXOs on payment address
     all_utxos = _fetch_mempool_utxos(payment_address, cfg.network)
@@ -781,8 +827,10 @@ def ord_recover_ordinals(
     if outpoint:
         parts = outpoint.split(":")
         target_utxos = [
-            u for u in all_utxos
-            if str(u.get("txid", "")) == parts[0] and int(u.get("vout", -1)) == int(parts[1])
+            u
+            for u in all_utxos
+            if str(u.get("txid", "")) == parts[0]
+            and int(u.get("vout", -1)) == int(parts[1])
         ]
         if not target_utxos:
             raise RuntimeError(f"UTXO {outpoint} not found on payment address.")
@@ -821,10 +869,12 @@ def ord_recover_ordinals(
             for r in data.get("results", []):
                 iid = r.get("id", "")
                 if iid:
-                    transfers.append({
-                        "inscriptionId": iid,
-                        "address": ordinals_address,
-                    })
+                    transfers.append(
+                        {
+                            "inscriptionId": iid,
+                            "address": ordinals_address,
+                        }
+                    )
         except Exception:
             continue
 

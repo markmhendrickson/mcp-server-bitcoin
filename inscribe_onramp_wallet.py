@@ -111,7 +111,9 @@ def _estimate_inscription_fees(
         "reveal_fee": total_reveal_fee,
         "commit_output_value": commit_output_value * num_inscriptions,
         "total_fee": total_commit_fee + total_reveal_fee,
-        "total_cost": total_commit_fee + total_reveal_fee + INSCRIPTION_OUTPUT_VALUE * num_inscriptions,
+        "total_cost": total_commit_fee
+        + total_reveal_fee
+        + INSCRIPTION_OUTPUT_VALUE * num_inscriptions,
         "commit_vsize": commit_vsize,
         "reveal_vsize": reveal_vsize,
         "fee_rate": fee_rate,
@@ -157,7 +159,7 @@ def _build_inscription_envelope(
     # Content in chunks of 520 bytes (MAX_SCRIPT_ELEMENT_SIZE)
     offset = 0
     while offset < len(content):
-        chunk = content[offset:offset + 520]
+        chunk = content[offset : offset + 520]
         if len(chunk) <= 75:
             envelope += bytes([len(chunk)]) + chunk
         elif len(chunk) <= 255:
@@ -216,7 +218,9 @@ def ord_create_inscription(
         if taproot and taproot.get("address"):
             recipient = taproot["address"]
         else:
-            p2wpkh = next((c for c in candidates if c.get("addr_type") == "p2wpkh"), None)
+            p2wpkh = next(
+                (c for c in candidates if c.get("addr_type") == "p2wpkh"), None
+            )
             if p2wpkh and p2wpkh.get("address"):
                 recipient = p2wpkh["address"]
             else:
@@ -320,7 +324,9 @@ def ord_create_repeat_inscriptions(
         if taproot and taproot.get("address"):
             recipient = taproot["address"]
         else:
-            p2wpkh = next((c for c in candidates if c.get("addr_type") == "p2wpkh"), None)
+            p2wpkh = next(
+                (c for c in candidates if c.get("addr_type") == "p2wpkh"), None
+            )
             if p2wpkh and p2wpkh.get("address"):
                 recipient = p2wpkh["address"]
             else:
@@ -337,13 +343,15 @@ def ord_create_repeat_inscriptions(
         envelope = _build_inscription_envelope(content_type, content_bytes)
         total_size += len(content_bytes)
 
-        inscriptions.append({
-            "index": i,
-            "content_size": len(content_bytes),
-            "content_hash": hashlib.sha256(content_bytes).hexdigest(),
-            "envelope_hex": envelope.hex(),
-            "envelope_size": len(envelope),
-        })
+        inscriptions.append(
+            {
+                "index": i,
+                "content_size": len(content_bytes),
+                "content_hash": hashlib.sha256(content_bytes).hexdigest(),
+                "envelope_hex": envelope.hex(),
+                "envelope_size": len(envelope),
+            }
+        )
 
     # Estimate total fees
     avg_size = total_size // len(contents) if contents else 0
@@ -381,17 +389,11 @@ def buy_get_providers(
 
     if crypto:
         crypto_upper = crypto.upper()
-        providers = [
-            p for p in providers
-            if crypto_upper in p["supported_crypto"]
-        ]
+        providers = [p for p in providers if crypto_upper in p["supported_crypto"]]
 
     if fiat:
         fiat_upper = fiat.upper()
-        providers = [
-            p for p in providers
-            if fiat_upper in p["supported_fiat"]
-        ]
+        providers = [p for p in providers if fiat_upper in p["supported_fiat"]]
 
     return {
         "providers": providers,

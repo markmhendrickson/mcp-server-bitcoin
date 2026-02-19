@@ -15,7 +15,6 @@ import requests
 
 from stx_wallet import STXConfig
 
-
 # ---------------------------------------------------------------------------
 # Hiro API helpers
 # ---------------------------------------------------------------------------
@@ -55,9 +54,7 @@ def stx_mempool_list_pending(
                 params={"limit": limit, "offset": offset},
             )
         except Exception as exc:
-            raise RuntimeError(
-                f"Failed to fetch mempool for {address}: {exc}"
-            ) from exc
+            raise RuntimeError(f"Failed to fetch mempool for {address}: {exc}") from exc
     else:
         # Global mempool
         try:
@@ -71,17 +68,19 @@ def stx_mempool_list_pending(
 
     results = []
     for tx in data.get("results", []):
-        results.append({
-            "txid": tx.get("tx_id", ""),
-            "tx_type": tx.get("tx_type", ""),
-            "tx_status": tx.get("tx_status", ""),
-            "receipt_time": tx.get("receipt_time"),
-            "receipt_time_iso": tx.get("receipt_time_iso"),
-            "fee_rate": tx.get("fee_rate", "0"),
-            "sender_address": tx.get("sender_address", ""),
-            "nonce": tx.get("nonce"),
-            "sponsor_address": tx.get("sponsor_address"),
-        })
+        results.append(
+            {
+                "txid": tx.get("tx_id", ""),
+                "tx_type": tx.get("tx_type", ""),
+                "tx_status": tx.get("tx_status", ""),
+                "receipt_time": tx.get("receipt_time"),
+                "receipt_time_iso": tx.get("receipt_time_iso"),
+                "fee_rate": tx.get("fee_rate", "0"),
+                "sender_address": tx.get("sender_address", ""),
+                "nonce": tx.get("nonce"),
+                "sponsor_address": tx.get("sponsor_address"),
+            }
+        )
 
     return {
         "transactions": results,
@@ -140,22 +139,22 @@ def stx_mempool_get_dropped(
             params={"limit": limit, "offset": offset},
         )
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to fetch dropped mempool txs: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to fetch dropped mempool txs: {exc}") from exc
 
     results = []
     for tx in data.get("results", []):
-        results.append({
-            "txid": tx.get("tx_id", ""),
-            "tx_type": tx.get("tx_type", ""),
-            "tx_status": tx.get("tx_status", ""),
-            "receipt_time": tx.get("receipt_time"),
-            "receipt_time_iso": tx.get("receipt_time_iso"),
-            "fee_rate": tx.get("fee_rate", "0"),
-            "sender_address": tx.get("sender_address", ""),
-            "reason": tx.get("tx_status", ""),
-        })
+        results.append(
+            {
+                "txid": tx.get("tx_id", ""),
+                "tx_type": tx.get("tx_type", ""),
+                "tx_status": tx.get("tx_status", ""),
+                "receipt_time": tx.get("receipt_time"),
+                "receipt_time_iso": tx.get("receipt_time_iso"),
+                "fee_rate": tx.get("fee_rate", "0"),
+                "sender_address": tx.get("sender_address", ""),
+                "reason": tx.get("tx_status", ""),
+            }
+        )
 
     return {
         "dropped_transactions": results,

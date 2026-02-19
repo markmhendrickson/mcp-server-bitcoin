@@ -10,7 +10,6 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import bitcoin_wallet_mcp_server as server  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -43,9 +42,16 @@ def test_phase4_tools_in_tool_list():
     tools = asyncio.run(server.list_tools())
     names = {tool.name for tool in tools}
     expected = {
-        "swap_get_supported_pairs", "swap_get_quote", "swap_execute", "swap_get_history",
-        "sbtc_get_balance", "sbtc_bridge_deposit", "sbtc_bridge_withdraw",
-        "stx_get_stacking_info", "stx_stack", "stx_revoke_delegation",
+        "swap_get_supported_pairs",
+        "swap_get_quote",
+        "swap_execute",
+        "swap_get_history",
+        "sbtc_get_balance",
+        "sbtc_bridge_deposit",
+        "sbtc_bridge_withdraw",
+        "stx_get_stacking_info",
+        "stx_stack",
+        "stx_revoke_delegation",
     }
     assert expected.issubset(names), f"Missing: {expected - names}"
 
@@ -63,7 +69,8 @@ def test_total_tool_count():
 
 def test_swap_get_supported_pairs(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -94,7 +101,8 @@ def test_swap_get_quote_missing_params():
 
 def test_swap_get_quote(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -111,9 +119,15 @@ def test_swap_get_quote(monkeypatch):
         }
 
     monkeypatch.setattr(server, "swap_get_quote", mock_quote)
-    response = asyncio.run(server._handle_swap_get_quote({
-        "token_in": "STX", "token_out": "ALEX", "amount": 100000,
-    }))
+    response = asyncio.run(
+        server._handle_swap_get_quote(
+            {
+                "token_in": "STX",
+                "token_out": "ALEX",
+                "amount": 100000,
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["estimated_output"] == 95000
@@ -127,7 +141,8 @@ def test_swap_execute_missing_params():
 
 def test_swap_execute(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -140,9 +155,15 @@ def test_swap_execute(monkeypatch):
         }
 
     monkeypatch.setattr(server, "swap_execute", mock_exec)
-    response = asyncio.run(server._handle_swap_execute({
-        "token_in": "STX", "token_out": "ALEX", "amount": 100000,
-    }))
+    response = asyncio.run(
+        server._handle_swap_execute(
+            {
+                "token_in": "STX",
+                "token_out": "ALEX",
+                "amount": 100000,
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["txid"].startswith("DRYRUN_")
@@ -150,7 +171,8 @@ def test_swap_execute(monkeypatch):
 
 def test_swap_get_history(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -175,7 +197,8 @@ def test_swap_get_history(monkeypatch):
 
 def test_sbtc_get_balance(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -203,7 +226,8 @@ def test_sbtc_bridge_deposit_missing_amount():
 
 def test_sbtc_bridge_deposit(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -223,7 +247,9 @@ def test_sbtc_bridge_deposit(monkeypatch):
 
 
 def test_sbtc_bridge_withdraw_missing_address():
-    response = asyncio.run(server.call_tool("sbtc_bridge_withdraw", {"amount_sats": 100}))
+    response = asyncio.run(
+        server.call_tool("sbtc_bridge_withdraw", {"amount_sats": 100})
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "btc_address" in payload["error"]
@@ -231,7 +257,8 @@ def test_sbtc_bridge_withdraw_missing_address():
 
 def test_sbtc_bridge_withdraw(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -245,9 +272,14 @@ def test_sbtc_bridge_withdraw(monkeypatch):
         }
 
     monkeypatch.setattr(server, "sbtc_bridge_withdraw", mock_withdraw)
-    response = asyncio.run(server._handle_sbtc_bridge_withdraw({
-        "amount_sats": 50000, "btc_address": "bc1qtest",
-    }))
+    response = asyncio.run(
+        server._handle_sbtc_bridge_withdraw(
+            {
+                "amount_sats": 50000,
+                "btc_address": "bc1qtest",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["action"] == "withdraw"
@@ -260,7 +292,8 @@ def test_sbtc_bridge_withdraw(monkeypatch):
 
 def test_stx_get_stacking_info(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -288,7 +321,8 @@ def test_stx_stack_missing_params():
 
 def test_stx_stack(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -301,9 +335,14 @@ def test_stx_stack(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_stack", mock_stack)
-    response = asyncio.run(server._handle_stx_stack({
-        "amount_ustx": 100000000, "pox_address": "bc1qtest",
-    }))
+    response = asyncio.run(
+        server._handle_stx_stack(
+            {
+                "amount_ustx": 100000000,
+                "pox_address": "bc1qtest",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["txid"].startswith("DRYRUN_")
@@ -311,7 +350,8 @@ def test_stx_stack(monkeypatch):
 
 def test_stx_revoke_delegation(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 

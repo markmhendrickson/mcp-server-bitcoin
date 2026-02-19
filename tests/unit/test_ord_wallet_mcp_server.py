@@ -11,7 +11,6 @@ sys.path.insert(0, str(REPO_ROOT))
 import bitcoin_wallet_mcp_server as server  # noqa: E402
 import ord_wallet  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -106,7 +105,8 @@ def test_get_payment_address_prefers_p2wpkh():
 
 def test_ord_get_inscriptions(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
@@ -157,7 +157,8 @@ def test_ord_get_inscription_details_missing_id():
 
 def test_ord_get_inscription_details(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
@@ -175,9 +176,13 @@ def test_ord_get_inscription_details(monkeypatch):
 
     monkeypatch.setattr(server, "ord_get_inscription_details", mock_details)
 
-    response = asyncio.run(server._handle_ord_get_inscription_details({
-        "inscription_id": "abc123i0",
-    }))
+    response = asyncio.run(
+        server._handle_ord_get_inscription_details(
+            {
+                "inscription_id": "abc123i0",
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -199,14 +204,18 @@ def test_ord_send_inscriptions_missing_transfers():
 
 def test_ord_send_inscriptions(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
     def mock_send(cfg, transfers, fee_rate, dry_run):
         return {
             "txid": "DRYRUN_abc123",
-            "transfers": [{"inscriptionId": t["inscriptionId"], "toAddress": t["address"]} for t in transfers],
+            "transfers": [
+                {"inscriptionId": t["inscriptionId"], "toAddress": t["address"]}
+                for t in transfers
+            ],
             "fee_sats": 1500,
             "dry_run": True,
             "network": "testnet",
@@ -214,9 +223,13 @@ def test_ord_send_inscriptions(monkeypatch):
 
     monkeypatch.setattr(server, "ord_send_inscriptions", mock_send)
 
-    response = asyncio.run(server._handle_ord_send_inscriptions({
-        "transfers": [{"address": "tb1qtest", "inscriptionId": "abc123i0"}],
-    }))
+    response = asyncio.run(
+        server._handle_ord_send_inscriptions(
+            {
+                "transfers": [{"address": "tb1qtest", "inscriptionId": "abc123i0"}],
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -233,7 +246,8 @@ def test_ord_send_inscriptions_split_missing_transfers():
 
 def test_ord_send_inscriptions_split(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
@@ -248,9 +262,13 @@ def test_ord_send_inscriptions_split(monkeypatch):
 
     monkeypatch.setattr(server, "ord_send_inscriptions_split", mock_split)
 
-    response = asyncio.run(server._handle_ord_send_inscriptions_split({
-        "transfers": [{"address": "tb1qtest", "inscriptionId": "abc123i0"}],
-    }))
+    response = asyncio.run(
+        server._handle_ord_send_inscriptions_split(
+            {
+                "transfers": [{"address": "tb1qtest", "inscriptionId": "abc123i0"}],
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -271,7 +289,8 @@ def test_ord_extract_from_utxo_missing_outpoint():
 
 def test_ord_extract_from_utxo(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
@@ -286,9 +305,13 @@ def test_ord_extract_from_utxo(monkeypatch):
 
     monkeypatch.setattr(server, "ord_extract_from_utxo", mock_extract)
 
-    response = asyncio.run(server._handle_ord_extract_from_utxo({
-        "outpoint": "abc123:0",
-    }))
+    response = asyncio.run(
+        server._handle_ord_extract_from_utxo(
+            {
+                "outpoint": "abc123:0",
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -297,7 +320,8 @@ def test_ord_extract_from_utxo(monkeypatch):
 
 def test_ord_recover_bitcoin(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 
@@ -323,7 +347,8 @@ def test_ord_recover_bitcoin(monkeypatch):
 
 def test_ord_recover_ordinals(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
 

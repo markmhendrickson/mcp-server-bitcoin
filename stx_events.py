@@ -14,7 +14,6 @@ import requests
 
 from stx_wallet import STXConfig
 
-
 # ---------------------------------------------------------------------------
 # Hiro API helpers
 # ---------------------------------------------------------------------------
@@ -52,9 +51,7 @@ def stx_get_contract_events(
             params={"limit": limit, "offset": offset},
         )
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to fetch events for {contract_id}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to fetch events for {contract_id}: {exc}") from exc
 
     events = []
     for event in data.get("results", []):
@@ -129,9 +126,7 @@ def stx_get_address_asset_events(
             params={"limit": limit, "offset": offset},
         )
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to fetch asset events for {addr}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to fetch asset events for {addr}: {exc}") from exc
 
     events = []
     for event in data.get("results", []):
@@ -148,7 +143,9 @@ def stx_get_address_asset_events(
             parsed["asset_id"] = asset.get("asset_id", "")
             parsed["sender"] = asset.get("sender", "")
             parsed["recipient"] = asset.get("recipient", "")
-            parsed["amount"] = asset.get("amount", asset.get("value", {}).get("repr", ""))
+            parsed["amount"] = asset.get(
+                "amount", asset.get("value", {}).get("repr", "")
+            )
 
         events.append(parsed)
 

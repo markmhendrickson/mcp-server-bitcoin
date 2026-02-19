@@ -15,7 +15,6 @@ import requests
 
 from stx_wallet import STXConfig
 
-
 # ---------------------------------------------------------------------------
 # Hiro API helpers
 # ---------------------------------------------------------------------------
@@ -47,7 +46,10 @@ def _format_block(block: dict) -> dict[str, Any]:
         "execution_cost_runtime": block.get("execution_cost_runtime"),
         "execution_cost_write_count": block.get("execution_cost_write_count"),
         "execution_cost_write_length": block.get("execution_cost_write_length"),
-        "tx_count": block.get("tx_count", block.get("txs", []).__len__() if isinstance(block.get("txs"), list) else 0),
+        "tx_count": block.get(
+            "tx_count",
+            block.get("txs", []).__len__() if isinstance(block.get("txs"), list) else 0,
+        ),
     }
 
 
@@ -98,9 +100,7 @@ def stx_get_block_by_height(
     try:
         data = _hiro_get(cfg, f"/extended/v2/blocks/by-height/{height}")
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to fetch block at height {height}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to fetch block at height {height}: {exc}") from exc
 
     result = _format_block(data)
     # Include transaction IDs if available
@@ -126,9 +126,7 @@ def stx_get_block_by_hash(
     try:
         data = _hiro_get(cfg, f"/extended/v2/blocks/{block_hash}")
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to fetch block {block_hash}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to fetch block {block_hash}: {exc}") from exc
 
     result = _format_block(data)
     txs = data.get("txs", [])

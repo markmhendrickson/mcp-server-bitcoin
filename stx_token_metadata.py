@@ -187,10 +187,12 @@ def stx_get_token_holders(
 
     holders = []
     for holder in data.get("results", []):
-        holders.append({
-            "address": holder.get("address", ""),
-            "balance": holder.get("balance", "0"),
-        })
+        holders.append(
+            {
+                "address": holder.get("address", ""),
+                "balance": holder.get("balance", "0"),
+            }
+        )
 
     return {
         "contract_id": contract_id,

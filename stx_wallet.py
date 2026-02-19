@@ -37,10 +37,10 @@ HIRO_TESTNET = "https://api.testnet.hiro.so"
 STX_DERIVATION_PATH = "m/44'/5757'/0'/0"
 
 # Stacks address versions
-ADDRESS_VERSION_MAINNET_SINGLE_SIG = 22   # 'SP'
-ADDRESS_VERSION_TESTNET_SINGLE_SIG = 26   # 'ST'
-ADDRESS_VERSION_MAINNET_MULTI_SIG = 20    # 'SM'
-ADDRESS_VERSION_TESTNET_MULTI_SIG = 21    # 'SN'
+ADDRESS_VERSION_MAINNET_SINGLE_SIG = 22  # 'SP'
+ADDRESS_VERSION_TESTNET_SINGLE_SIG = 26  # 'ST'
+ADDRESS_VERSION_MAINNET_MULTI_SIG = 20  # 'SM'
+ADDRESS_VERSION_TESTNET_MULTI_SIG = 21  # 'SN'
 
 # Stacks transaction versions
 TX_VERSION_MAINNET = 0x00
@@ -139,7 +139,9 @@ def _hash160(data: bytes) -> bytes:
 # ---------------------------------------------------------------------------
 
 
-def _derive_stx_key_from_seed(seed: bytes, account_index: int = 0) -> tuple[bytes, bytes]:
+def _derive_stx_key_from_seed(
+    seed: bytes, account_index: int = 0
+) -> tuple[bytes, bytes]:
     """
     Derive a Stacks private/public key pair from a BIP-39 seed.
 
@@ -153,10 +155,10 @@ def _derive_stx_key_from_seed(seed: bytes, account_index: int = 0) -> tuple[byte
 
     # Derive path: m/44'/5757'/0'/0
     path_components = [
-        44 + 0x80000000,     # 44'
-        5757 + 0x80000000,   # 5757'
-        0 + 0x80000000,      # 0'
-        0,                    # 0 (external chain)
+        44 + 0x80000000,  # 44'
+        5757 + 0x80000000,  # 5757'
+        0 + 0x80000000,  # 0'
+        0,  # 0 (external chain)
     ]
 
     key = master_key
@@ -189,7 +191,9 @@ def _derive_child(
         data = pubkey + struct.pack(">I", index)
 
     I = hmac.new(parent_chain, data, hashlib.sha512).digest()
-    child_key_int = (int.from_bytes(I[:32], "big") + int.from_bytes(parent_key, "big")) % 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+    child_key_int = (
+        int.from_bytes(I[:32], "big") + int.from_bytes(parent_key, "big")
+    ) % 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
     child_key = child_key_int.to_bytes(32, "big")
     child_chain = I[32:]
 
@@ -205,9 +209,9 @@ def _derive_child(
 class STXConfig:
     """Configuration for Stacks wallet operations."""
 
-    private_key: bytes       # 32-byte private key
-    public_key: bytes        # 33-byte compressed public key
-    stx_address: str         # c32check encoded address
+    private_key: bytes  # 32-byte private key
+    public_key: bytes  # 33-byte compressed public key
+    stx_address: str  # c32check encoded address
     network: STXNetwork
     hiro_api_url: str
     dry_run_default: bool = True
@@ -278,7 +282,12 @@ def _hiro_post(cfg: STXConfig, path: str, data: Any = None, raw: bool = False) -
     """POST request to Hiro Stacks API."""
     url = f"{cfg.hiro_api_url}{path}"
     if raw:
-        resp = requests.post(url, data=data, headers={"Content-Type": "application/octet-stream"}, timeout=10)
+        resp = requests.post(
+            url,
+            data=data,
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=10,
+        )
     else:
         resp = requests.post(url, json=data, timeout=10)
     resp.raise_for_status()
@@ -306,8 +315,16 @@ def stx_get_accounts(cfg: STXConfig) -> list[dict[str, Any]]:
     """Get Stacks accounts with balances and nonces."""
     try:
         data = _hiro_get(cfg, f"/v2/accounts/{cfg.stx_address}")
-        balance_raw = int(data.get("balance", "0x0"), 16) if isinstance(data.get("balance"), str) else int(data.get("balance", 0))
-        locked_raw = int(data.get("locked", "0x0"), 16) if isinstance(data.get("locked"), str) else int(data.get("locked", 0))
+        balance_raw = (
+            int(data.get("balance", "0x0"), 16)
+            if isinstance(data.get("balance"), str)
+            else int(data.get("balance", 0))
+        )
+        locked_raw = (
+            int(data.get("locked", "0x0"), 16)
+            if isinstance(data.get("locked"), str)
+            else int(data.get("locked", 0))
+        )
         nonce = int(data.get("nonce", 0))
     except Exception:
         balance_raw = 0
@@ -348,19 +365,23 @@ def stx_get_balance(cfg: STXConfig, address: str | None = None) -> dict[str, Any
     ft_data = data.get("fungible_tokens", {})
     fungible_tokens = []
     for token_id, token_info in ft_data.items():
-        fungible_tokens.append({
-            "token_id": token_id,
-            "balance": token_info.get("balance", "0"),
-        })
+        fungible_tokens.append(
+            {
+                "token_id": token_id,
+                "balance": token_info.get("balance", "0"),
+            }
+        )
 
     # Non-fungible tokens
     nft_data = data.get("non_fungible_tokens", {})
     nfts = []
     for token_id, token_info in nft_data.items():
-        nfts.append({
-            "token_id": token_id,
-            "count": token_info.get("count", 0),
-        })
+        nfts.append(
+            {
+                "token_id": token_id,
+                "count": token_info.get("count", 0),
+            }
+        )
 
     return {
         "address": addr,
@@ -736,7 +757,9 @@ def stx_transfer_sip10_ft(
     # SIP-10 transfer function is always 'transfer'
     parts = asset.split("::")
     if len(parts) != 2:
-        raise ValueError("Asset must be in format 'contract_address.contract_name::token_name'")
+        raise ValueError(
+            "Asset must be in format 'contract_address.contract_name::token_name'"
+        )
 
     contract_id = parts[0]  # SP...xxx.contract-name
     token_name = parts[1]
@@ -791,7 +814,9 @@ def stx_transfer_sip9_nft(
 
     parts = asset.split("::")
     if len(parts) != 2:
-        raise ValueError("Asset must be in format 'contract_address.contract_name::nft_name'")
+        raise ValueError(
+            "Asset must be in format 'contract_address.contract_name::nft_name'"
+        )
 
     contract_id = parts[0]
     nft_name = parts[1]
@@ -846,10 +871,14 @@ def _serialize_clarity_value(val_str: str) -> bytes:
 
     # uint
     if val_str.startswith("u") and val_str[1:].isdigit():
-        return b"\x01" + struct.pack(">QQ", 0, int(val_str[1:]))  # 128-bit uint as two u64
+        return b"\x01" + struct.pack(
+            ">QQ", 0, int(val_str[1:])
+        )  # 128-bit uint as two u64
 
     # int
-    if val_str.startswith("i") and (val_str[1:].isdigit() or (val_str[1] == '-' and val_str[2:].isdigit())):
+    if val_str.startswith("i") and (
+        val_str[1:].isdigit() or (val_str[1] == "-" and val_str[2:].isdigit())
+    ):
         v = int(val_str[1:])
         if v < 0:
             v = (1 << 128) + v
@@ -1018,7 +1047,9 @@ def stx_deploy_contract(
     if fee is None:
         fee = stx_estimate_fee(cfg)
 
-    payload = _build_smart_contract_payload(contract_name, clarity_code, clarity_version)
+    payload = _build_smart_contract_payload(
+        contract_name, clarity_code, clarity_version
+    )
     tx_bytes, sig_offset = _build_stx_transaction(cfg, payload, fee, nonce)
     signed_tx = _sign_stx_transaction(cfg, tx_bytes, sig_offset)
     tx_hex = signed_tx.hex()
@@ -1035,7 +1066,12 @@ def stx_deploy_contract(
 
     if dry_run:
         tx_hash = hashlib.sha256(signed_tx).hexdigest()
-        return {**base_result, "txid": f"DRYRUN_{tx_hash[:64]}", "tx_hex": tx_hex, "dry_run": True}
+        return {
+            **base_result,
+            "txid": f"DRYRUN_{tx_hash[:64]}",
+            "tx_hex": tx_hex,
+            "dry_run": True,
+        }
 
     txid = _broadcast_stx_tx(cfg, tx_hex)
     return {**base_result, "txid": txid, "tx_hex": tx_hex, "dry_run": False}
@@ -1238,7 +1274,7 @@ def stx_update_profile(
         "dry_run": dry_run,
         "network": cfg.network,
         "note": "Profile update requires a registered BNS name. "
-                "Use stx_call_contract with the BNS contract for zone file updates.",
+        "Use stx_call_contract with the BNS contract for zone file updates.",
     }
 
 

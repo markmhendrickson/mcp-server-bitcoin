@@ -12,7 +12,6 @@ sys.path.insert(0, str(REPO_ROOT))
 import bitcoin_wallet_mcp_server as server  # noqa: E402
 import stx_wallet  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -135,19 +134,32 @@ def test_stx_tools_in_tool_list():
     names = {tool.name for tool in tools}
 
     stx_expected = {
-        "stx_get_addresses", "stx_get_accounts", "stx_get_balance", "stx_get_networks",
-        "stx_transfer_stx", "stx_preview_transfer", "stx_transfer_sip10_ft",
-        "stx_transfer_sip9_nft", "stx_call_contract", "stx_deploy_contract",
-        "stx_read_contract", "stx_sign_transaction", "stx_sign_transactions",
-        "stx_sign_message", "stx_sign_structured_message", "stx_get_nonce",
-        "stx_estimate_fee", "stx_update_profile",
+        "stx_get_addresses",
+        "stx_get_accounts",
+        "stx_get_balance",
+        "stx_get_networks",
+        "stx_transfer_stx",
+        "stx_preview_transfer",
+        "stx_transfer_sip10_ft",
+        "stx_transfer_sip9_nft",
+        "stx_call_contract",
+        "stx_deploy_contract",
+        "stx_read_contract",
+        "stx_sign_transaction",
+        "stx_sign_transactions",
+        "stx_sign_message",
+        "stx_sign_structured_message",
+        "stx_get_nonce",
+        "stx_estimate_fee",
+        "stx_update_profile",
     }
     assert stx_expected.issubset(names), f"Missing: {stx_expected - names}"
 
 
 def test_stx_get_addresses(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -163,21 +175,24 @@ def test_stx_get_addresses(monkeypatch):
 
 def test_stx_get_accounts(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
     def mock_get_accounts(cfg):
-        return [{
-            "address": cfg.stx_address,
-            "balance_ustx": 5000000,
-            "balance_stx": "5.000000",
-            "locked_ustx": 0,
-            "locked_stx": "0",
-            "nonce": 3,
-            "derivationPath": cfg.derivation_path,
-            "publicKey": cfg.public_key.hex(),
-        }]
+        return [
+            {
+                "address": cfg.stx_address,
+                "balance_ustx": 5000000,
+                "balance_stx": "5.000000",
+                "locked_ustx": 0,
+                "locked_stx": "0",
+                "nonce": 3,
+                "derivationPath": cfg.derivation_path,
+                "publicKey": cfg.public_key.hex(),
+            }
+        ]
 
     monkeypatch.setattr(server, "stx_get_accounts", mock_get_accounts)
 
@@ -191,7 +206,8 @@ def test_stx_get_accounts(monkeypatch):
 
 def test_stx_get_networks(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -224,7 +240,8 @@ def test_stx_transfer_stx_missing_amount():
 
 def test_stx_preview_transfer(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -248,10 +265,14 @@ def test_stx_preview_transfer(monkeypatch):
 
     monkeypatch.setattr(server, "stx_preview_transfer", mock_preview)
 
-    response = asyncio.run(server._handle_stx_preview_transfer({
-        "recipient": "STxxx",
-        "amount_ustx": 1000000,
-    }))
+    response = asyncio.run(
+        server._handle_stx_preview_transfer(
+            {
+                "recipient": "STxxx",
+                "amount_ustx": 1000000,
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -260,18 +281,30 @@ def test_stx_preview_transfer(monkeypatch):
 
 
 def test_stx_transfer_sip10_missing_asset():
-    response = asyncio.run(server.call_tool("stx_transfer_sip10_ft", {
-        "recipient": "STxxx", "amount": 100,
-    }))
+    response = asyncio.run(
+        server.call_tool(
+            "stx_transfer_sip10_ft",
+            {
+                "recipient": "STxxx",
+                "amount": 100,
+            },
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "asset" in payload["error"]
 
 
 def test_stx_transfer_sip9_missing_asset_id():
-    response = asyncio.run(server.call_tool("stx_transfer_sip9_nft", {
-        "recipient": "STxxx", "asset": "SPxxx.contract::nft",
-    }))
+    response = asyncio.run(
+        server.call_tool(
+            "stx_transfer_sip9_nft",
+            {
+                "recipient": "STxxx",
+                "asset": "SPxxx.contract::nft",
+            },
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "asset_id" in payload["error"]
@@ -283,27 +316,44 @@ def test_stx_transfer_sip9_missing_asset_id():
 
 
 def test_stx_call_contract_missing_address():
-    response = asyncio.run(server.call_tool("stx_call_contract", {
-        "contract_name": "test", "function_name": "fn",
-    }))
+    response = asyncio.run(
+        server.call_tool(
+            "stx_call_contract",
+            {
+                "contract_name": "test",
+                "function_name": "fn",
+            },
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "contract_address" in payload["error"]
 
 
 def test_stx_deploy_contract_missing_code():
-    response = asyncio.run(server.call_tool("stx_deploy_contract", {
-        "contract_name": "test",
-    }))
+    response = asyncio.run(
+        server.call_tool(
+            "stx_deploy_contract",
+            {
+                "contract_name": "test",
+            },
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "clarity_code" in payload["error"]
 
 
 def test_stx_read_contract_missing_function():
-    response = asyncio.run(server.call_tool("stx_read_contract", {
-        "contract_address": "SPxxx", "contract_name": "test",
-    }))
+    response = asyncio.run(
+        server.call_tool(
+            "stx_read_contract",
+            {
+                "contract_address": "SPxxx",
+                "contract_name": "test",
+            },
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "function_name" in payload["error"]
@@ -337,7 +387,8 @@ def test_stx_sign_message_missing():
 
 def test_stx_sign_message(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -359,7 +410,9 @@ def test_stx_sign_message(monkeypatch):
 
 
 def test_stx_sign_structured_message_missing_domain():
-    response = asyncio.run(server.call_tool("stx_sign_structured_message", {"message": "hi"}))
+    response = asyncio.run(
+        server.call_tool("stx_sign_structured_message", {"message": "hi"})
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "domain" in payload["error"]
@@ -372,7 +425,8 @@ def test_stx_sign_structured_message_missing_domain():
 
 def test_stx_get_nonce(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
     monkeypatch.setattr(server, "stx_get_nonce", lambda cfg, addr: 42)
@@ -386,7 +440,8 @@ def test_stx_get_nonce(monkeypatch):
 
 def test_stx_estimate_fee(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
     monkeypatch.setattr(server, "stx_estimate_fee", lambda cfg: 500)
@@ -407,13 +462,18 @@ def test_stx_update_profile_missing_person():
 
 def test_stx_update_profile(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
-    response = asyncio.run(server._handle_stx_update_profile({
-        "person": {"name": "Satoshi"},
-    }))
+    response = asyncio.run(
+        server._handle_stx_update_profile(
+            {
+                "person": {"name": "Satoshi"},
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True

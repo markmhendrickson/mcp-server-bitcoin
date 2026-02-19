@@ -26,10 +26,22 @@ class DummyBTCCfg:
     max_fee_sats_env = None
     private_key_wif = "ctest"
     candidate_wifs = [
-        {"label": "p2wpkh", "addr_type": "p2wpkh", "wif": "ctest",
-         "address": "tb1qtest", "public_key": "02ab", "derivation_path": "m/84'/1'/0'/0/0"},
-        {"label": "p2tr", "addr_type": "p2tr", "wif": "ctest",
-         "address": "tb1ptest", "public_key": "02cd", "derivation_path": "m/86'/1'/0'/0/0"},
+        {
+            "label": "p2wpkh",
+            "addr_type": "p2wpkh",
+            "wif": "ctest",
+            "address": "tb1qtest",
+            "public_key": "02ab",
+            "derivation_path": "m/84'/1'/0'/0/0",
+        },
+        {
+            "label": "p2tr",
+            "addr_type": "p2tr",
+            "wif": "ctest",
+            "address": "tb1ptest",
+            "public_key": "02cd",
+            "derivation_path": "m/86'/1'/0'/0/0",
+        },
     ]
 
 
@@ -108,14 +120,18 @@ def test_create_inscription_missing_type():
 
 
 def test_create_inscription_missing_content():
-    r = asyncio.run(server.call_tool("ord_create_inscription", {"content_type": "text/plain"}))
+    r = asyncio.run(
+        server.call_tool("ord_create_inscription", {"content_type": "text/plain"})
+    )
     p = _parse(r)
     assert p["success"] is False
     assert "content" in p["error"]
 
 
 def test_create_inscription(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
 
     def mock(cfg, ct, content, enc, recip, fr, dr):
         return {
@@ -132,10 +148,14 @@ def test_create_inscription(monkeypatch):
 
     monkeypatch.setattr(server, "ord_create_inscription", mock)
 
-    r = asyncio.run(server._handle_ord_create_inscription({
-        "content_type": "text/plain",
-        "content": "Hello Ordinals!",
-    }))
+    r = asyncio.run(
+        server._handle_ord_create_inscription(
+            {
+                "content_type": "text/plain",
+                "content": "Hello Ordinals!",
+            }
+        )
+    )
     p = _parse(r)
     assert p["success"] is True
     assert p["content_type"] == "text/plain"
@@ -148,14 +168,20 @@ def test_create_inscription(monkeypatch):
 
 
 def test_repeat_inscriptions_missing_contents():
-    r = asyncio.run(server.call_tool("ord_create_repeat_inscriptions", {"content_type": "text/plain"}))
+    r = asyncio.run(
+        server.call_tool(
+            "ord_create_repeat_inscriptions", {"content_type": "text/plain"}
+        )
+    )
     p = _parse(r)
     assert p["success"] is False
     assert "contents" in p["error"]
 
 
 def test_repeat_inscriptions(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
 
     def mock(cfg, ct, contents, enc, recip, fr, dr):
         return {
@@ -169,10 +195,14 @@ def test_repeat_inscriptions(monkeypatch):
 
     monkeypatch.setattr(server, "ord_create_repeat_inscriptions", mock)
 
-    r = asyncio.run(server._handle_ord_create_repeat_inscriptions({
-        "content_type": "text/plain",
-        "contents": ["one", "two", "three"],
-    }))
+    r = asyncio.run(
+        server._handle_ord_create_repeat_inscriptions(
+            {
+                "content_type": "text/plain",
+                "contents": ["one", "two", "three"],
+            }
+        )
+    )
     p = _parse(r)
     assert p["success"] is True
     assert p["count"] == 3

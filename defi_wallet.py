@@ -68,13 +68,15 @@ def _alex_pairs() -> list[dict[str, Any]]:
             token_x = p.get("token_x", "")
             token_y = p.get("token_y", "")
             if token_x and token_y:
-                pairs.append({
-                    "pool_id": p.get("pool_id"),
-                    "token_x": token_x,
-                    "token_y": token_y,
-                    "protocol": "alex",
-                    "apr_7d": p.get("apr_7d", 0),
-                })
+                pairs.append(
+                    {
+                        "pool_id": p.get("pool_id"),
+                        "token_x": token_x,
+                        "token_y": token_y,
+                        "protocol": "alex",
+                        "apr_7d": p.get("apr_7d", 0),
+                    }
+                )
     return pairs
 
 
@@ -93,13 +95,15 @@ def _bitflow_pairs() -> list[dict[str, Any]]:
             base = t.get("base_currency") or t.get("base")
             target = t.get("target_currency") or t.get("target")
             if base and target:
-                pairs.append({
-                    "pool_id": t.get("ticker_id") or f"{base}_{target}",
-                    "token_x": base,
-                    "token_y": target,
-                    "protocol": "bitflow",
-                    "last_price": t.get("last_price"),
-                })
+                pairs.append(
+                    {
+                        "pool_id": t.get("ticker_id") or f"{base}_{target}",
+                        "token_x": base,
+                        "token_y": target,
+                        "protocol": "bitflow",
+                        "last_price": t.get("last_price"),
+                    }
+                )
     return pairs
 
 
@@ -153,7 +157,9 @@ def swap_get_quote(
     """
     protocol = (protocol or "alex").lower()
     if protocol not in SUPPORTED_SWAP_PROTOCOLS:
-        raise ValueError(f"Unsupported protocol: {protocol}. Use one of: {SUPPORTED_SWAP_PROTOCOLS}")
+        raise ValueError(
+            f"Unsupported protocol: {protocol}. Use one of: {SUPPORTED_SWAP_PROTOCOLS}"
+        )
 
     if protocol == "bitflow":
         return _swap_get_quote_bitflow(cfg, token_in, token_out, amount)
@@ -245,15 +251,21 @@ def _swap_get_quote_bitflow(
         except (TypeError, ValueError):
             continue
         # Match (token_in, token_out) to (base, target) or (target, base)
-        if (base == a_in and target == a_out) or (base == token_in and target == token_out):
+        if (base == a_in and target == a_out) or (
+            base == token_in and target == token_out
+        ):
             estimated_output = amount * rate
-        elif (base == a_out and target == a_in) or (base == token_out and target == token_in):
+        elif (base == a_out and target == a_in) or (
+            base == token_out and target == token_in
+        ):
             estimated_output = amount / rate if rate else 0
         else:
             continue
         fee_pct = 0.003
         slippage_pct = 0.01
-        estimated_output_after_fees = int(estimated_output * (1 - fee_pct - slippage_pct))
+        estimated_output_after_fees = int(
+            estimated_output * (1 - fee_pct - slippage_pct)
+        )
         return {
             "token_in": token_in,
             "token_out": token_out,
@@ -310,8 +322,12 @@ def swap_execute(
 
     alex_router = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM"
     alex_contract = "amm-pool-v2-01"
-    in_asset = f"'{alex_router}.token-wstx" if token_in.upper() == "STX" else f"'{token_in}"
-    out_asset = f"'{alex_router}.token-wstx" if token_out.upper() == "STX" else f"'{token_out}"
+    in_asset = (
+        f"'{alex_router}.token-wstx" if token_in.upper() == "STX" else f"'{token_in}"
+    )
+    out_asset = (
+        f"'{alex_router}.token-wstx" if token_out.upper() == "STX" else f"'{token_out}"
+    )
 
     result = stx_call_contract(
         cfg,
@@ -362,19 +378,22 @@ def swap_get_history(
         contract_id = contract_call.get("contract_id", "")
 
         # Filter for swap-like transactions
-        is_swap = any(kw in fn_name.lower() for kw in swap_keywords) or \
-                  any(kw in contract_id.lower() for kw in swap_keywords)
+        is_swap = any(kw in fn_name.lower() for kw in swap_keywords) or any(
+            kw in contract_id.lower() for kw in swap_keywords
+        )
 
         if is_swap:
-            swap_txs.append({
-                "txid": tx.get("tx_id", ""),
-                "contract_id": contract_id,
-                "function_name": fn_name,
-                "status": tx.get("tx_status", ""),
-                "block_height": tx.get("block_height"),
-                "burn_block_time": tx.get("burn_block_time"),
-                "fee_ustx": tx.get("fee_rate", 0),
-            })
+            swap_txs.append(
+                {
+                    "txid": tx.get("tx_id", ""),
+                    "contract_id": contract_id,
+                    "function_name": fn_name,
+                    "status": tx.get("tx_status", ""),
+                    "block_height": tx.get("block_height"),
+                    "burn_block_time": tx.get("burn_block_time"),
+                    "fee_ustx": tx.get("fee_rate", 0),
+                }
+            )
 
     return {
         "swaps": swap_txs,
@@ -536,7 +555,11 @@ def stx_get_stacking_info(cfg: STXConfig) -> dict[str, Any]:
     blocks_remaining = 0
     estimated_minutes_remaining = 0
 
-    if total_cycle_length > 0 and current_burn_height > 0 and first_burnchain_block_height > 0:
+    if (
+        total_cycle_length > 0
+        and current_burn_height > 0
+        and first_burnchain_block_height > 0
+    ):
         blocks_since_start = current_burn_height - first_burnchain_block_height
         blocks_into_cycle = blocks_since_start % total_cycle_length
         percent_complete = round((blocks_into_cycle / total_cycle_length) * 100, 2)

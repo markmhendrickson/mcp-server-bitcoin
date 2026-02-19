@@ -11,7 +11,6 @@ sys.path.insert(0, str(REPO_ROOT))
 import bitcoin_wallet_mcp_server as server  # noqa: E402
 import bitcoin_wallet  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -112,8 +111,16 @@ def test_list_tools_count():
 
 
 def test_get_addresses_returns_all_types(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
-    monkeypatch.setattr(bitcoin_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
+    monkeypatch.setattr(
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
+    monkeypatch.setattr(
+        bitcoin_wallet,
+        "_make_key_from_wif",
+        lambda *a: type("K", (), {"address": "test"})(),
+    )
 
     response = asyncio.run(server._handle_get_addresses())
     payload = _parse(response)
@@ -128,12 +135,23 @@ def test_get_addresses_returns_all_types(monkeypatch):
 
 
 def test_get_accounts_returns_balances(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
     monkeypatch.setattr(
-        bitcoin_wallet, "_fetch_mempool_utxos",
-        lambda addr, net: [{"value": 50000}] if "p2wpkh" in addr or "tb1q" in addr else [],
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
     )
-    monkeypatch.setattr(bitcoin_wallet, "_make_key_from_wif", lambda *a: type("K", (), {"address": "test"})())
+    monkeypatch.setattr(
+        bitcoin_wallet,
+        "_fetch_mempool_utxos",
+        lambda addr, net: (
+            [{"value": 50000}] if "p2wpkh" in addr or "tb1q" in addr else []
+        ),
+    )
+    monkeypatch.setattr(
+        bitcoin_wallet,
+        "_make_key_from_wif",
+        lambda *a: type("K", (), {"address": "test"})(),
+    )
 
     response = asyncio.run(server._handle_get_accounts())
     payload = _parse(response)
@@ -144,7 +162,11 @@ def test_get_accounts_returns_balances(monkeypatch):
 
 
 def test_get_info(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
+    monkeypatch.setattr(
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
 
     response = asyncio.run(server._handle_get_info())
     payload = _parse(response)
@@ -208,15 +230,24 @@ def test_send_max_missing_address():
 
 
 def test_send_transfer_multi_calls_backend(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
     monkeypatch.setattr(
-        server, "send_transfer_multi",
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
+    monkeypatch.setattr(
+        server,
+        "send_transfer_multi",
         lambda cfg, recipients, max_fee, memo, dry_run: "DRYRUN_abc123",
     )
 
-    response = asyncio.run(server._handle_send_transfer_multi({
-        "recipients": [{"address": "tb1qtest", "amount_sats": 10000}],
-    }))
+    response = asyncio.run(
+        server._handle_send_transfer_multi(
+            {
+                "recipients": [{"address": "tb1qtest", "amount_sats": 10000}],
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -274,7 +305,11 @@ def test_verify_message_missing_params():
 
 
 def test_get_fees(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
+    monkeypatch.setattr(
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
     monkeypatch.setattr(
         bitcoin_wallet, "_fetch_dynamic_fee_rate_sat_per_byte", lambda *a: 5
     )
@@ -302,7 +337,11 @@ def test_get_fees(monkeypatch):
 
 
 def test_estimate_fee(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
+    monkeypatch.setattr(
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
 
     def mock_estimate(cfg, num_inputs, num_outputs, addr_type, fee_tier):
         return {
@@ -319,11 +358,15 @@ def test_estimate_fee(monkeypatch):
 
     monkeypatch.setattr(server, "estimate_fee", mock_estimate)
 
-    response = asyncio.run(server._handle_estimate_fee({
-        "num_inputs": 2,
-        "num_outputs": 3,
-        "address_type": "p2wpkh",
-    }))
+    response = asyncio.run(
+        server._handle_estimate_fee(
+            {
+                "num_inputs": 2,
+                "num_outputs": 3,
+                "address_type": "p2wpkh",
+            }
+        )
+    )
     payload = _parse(response)
 
     assert payload["success"] is True
@@ -337,7 +380,11 @@ def test_estimate_fee(monkeypatch):
 
 
 def test_list_utxos(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}))
+    monkeypatch.setattr(
+        server,
+        "BTCConfig",
+        type("BTCConfig", (), {"from_env": classmethod(_make_dummy_cfg)}),
+    )
 
     def mock_list_utxos(cfg, addr_type, min_val, confirmed):
         return [

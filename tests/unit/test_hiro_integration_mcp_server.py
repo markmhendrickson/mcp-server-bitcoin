@@ -22,7 +22,6 @@ sys.path.insert(0, str(REPO_ROOT))
 
 import bitcoin_wallet_mcp_server as server  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -49,9 +48,7 @@ class DummyBTCCfg:
     use_fixed_fee_rate = False
     dry_run_default = True
     max_send_btc = None
-    candidate_wifs = [
-        {"addr_type": "p2wpkh", "address": "tb1qtest", "wif": "cTest..."}
-    ]
+    candidate_wifs = [{"addr_type": "p2wpkh", "address": "tb1qtest", "wif": "cTest..."}]
 
 
 def _make_dummy_stx_cfg(*_a, **_kw):
@@ -109,12 +106,15 @@ def test_phase6_adds_16_tools():
 
 def test_stx_query_transactions(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
     monkeypatch.setenv("STX_ADDRESS", "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG")
 
-    def mock_query(cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False):
+    def mock_query(
+        cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False
+    ):
         return {
             "address": address or "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG",
             "transactions": [
@@ -139,11 +139,14 @@ def test_stx_query_transactions(monkeypatch):
 
 def test_stx_query_transactions_with_type_filter(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
 
-    def mock_query(cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False):
+    def mock_query(
+        cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False
+    ):
         return {
             "address": "ST2CY5...",
             "transactions": [{"txid": "0xabc", "tx_type": "contract_call"}],
@@ -156,9 +159,14 @@ def test_stx_query_transactions_with_type_filter(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_query_transactions", mock_query)
-    response = asyncio.run(server._handle_stx_query_transactions({
-        "tx_type": "contract_call", "unanchored": True,
-    }))
+    response = asyncio.run(
+        server._handle_stx_query_transactions(
+            {
+                "tx_type": "contract_call",
+                "unanchored": True,
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["tx_type_filter"] == "contract_call"
@@ -166,7 +174,8 @@ def test_stx_query_transactions_with_type_filter(monkeypatch):
 
 def test_stx_query_transactions_by_contract(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
 
@@ -184,9 +193,13 @@ def test_stx_query_transactions_by_contract(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_query_transactions_by_contract", mock_query)
-    response = asyncio.run(server._handle_stx_query_transactions_by_contract({
-        "contract_id": "SP000.my-contract",
-    }))
+    response = asyncio.run(
+        server._handle_stx_query_transactions_by_contract(
+            {
+                "contract_id": "SP000.my-contract",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["contract_id"] == "SP000.my-contract"
@@ -207,7 +220,8 @@ def test_stx_query_transactions_by_contract_missing_id():
 
 def test_stx_mempool_list_pending(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -233,7 +247,8 @@ def test_stx_mempool_list_pending(monkeypatch):
 
 def test_stx_mempool_list_pending_with_address(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -248,9 +263,13 @@ def test_stx_mempool_list_pending_with_address(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_mempool_list_pending", mock_pending)
-    response = asyncio.run(server._handle_stx_mempool_list_pending({
-        "address": "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG",
-    }))
+    response = asyncio.run(
+        server._handle_stx_mempool_list_pending(
+            {
+                "address": "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["address"] == "ST2CY5V39NHDPWSXMW9QDT3HC3GD6Q6XX4CFRK9AG"
@@ -258,7 +277,8 @@ def test_stx_mempool_list_pending_with_address(monkeypatch):
 
 def test_stx_mempool_get_stats(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -280,7 +300,8 @@ def test_stx_mempool_get_stats(monkeypatch):
 
 def test_stx_mempool_get_dropped(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -309,7 +330,8 @@ def test_stx_mempool_get_dropped(monkeypatch):
 
 def test_stx_get_recent_blocks(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -335,7 +357,8 @@ def test_stx_get_recent_blocks(monkeypatch):
 
 def test_stx_get_block_by_height(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -363,7 +386,8 @@ def test_stx_get_block_by_height_missing_param():
 
 def test_stx_get_block_by_hash(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -376,7 +400,9 @@ def test_stx_get_block_by_hash(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_block_by_hash", mock_block)
-    response = asyncio.run(server._handle_stx_get_block_by_hash({"block_hash": "0xabc123"}))
+    response = asyncio.run(
+        server._handle_stx_get_block_by_hash({"block_hash": "0xabc123"})
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["hash"] == "0xabc123"
@@ -391,7 +417,8 @@ def test_stx_get_block_by_hash_missing_param():
 
 def test_stx_get_stacks_blocks_for_bitcoin_block(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -409,9 +436,13 @@ def test_stx_get_stacks_blocks_for_bitcoin_block(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_stacks_blocks_for_bitcoin_block", mock_blocks)
-    response = asyncio.run(server._handle_stx_get_stacks_blocks_for_bitcoin_block({
-        "bitcoin_height": 935748,
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_stacks_blocks_for_bitcoin_block(
+            {
+                "bitcoin_height": 935748,
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["bitcoin_block_height"] == 935748
@@ -419,7 +450,9 @@ def test_stx_get_stacks_blocks_for_bitcoin_block(monkeypatch):
 
 
 def test_stx_get_stacks_blocks_for_bitcoin_block_missing_param():
-    response = asyncio.run(server.call_tool("stx_get_stacks_blocks_for_bitcoin_block", {}))
+    response = asyncio.run(
+        server.call_tool("stx_get_stacks_blocks_for_bitcoin_block", {})
+    )
     payload = _parse(response)
     assert payload["success"] is False
     assert "bitcoin_height" in payload["error"]
@@ -432,7 +465,8 @@ def test_stx_get_stacks_blocks_for_bitcoin_block_missing_param():
 
 def test_stx_get_contract_events(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -440,8 +474,16 @@ def test_stx_get_contract_events(monkeypatch):
         return {
             "contract_id": contract_id,
             "events": [
-                {"event_type": "smart_contract_log", "tx_id": "0xabc", "topic": "print"},
-                {"event_type": "fungible_token_asset", "tx_id": "0xdef", "amount": "100"},
+                {
+                    "event_type": "smart_contract_log",
+                    "tx_id": "0xabc",
+                    "topic": "print",
+                },
+                {
+                    "event_type": "fungible_token_asset",
+                    "tx_id": "0xdef",
+                    "amount": "100",
+                },
             ],
             "total": 2,
             "limit": limit,
@@ -450,9 +492,13 @@ def test_stx_get_contract_events(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_contract_events", mock_events)
-    response = asyncio.run(server._handle_stx_get_contract_events({
-        "contract_id": "SP000.my-contract",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_contract_events(
+            {
+                "contract_id": "SP000.my-contract",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["contract_id"] == "SP000.my-contract"
@@ -468,7 +514,8 @@ def test_stx_get_contract_events_missing_id():
 
 def test_stx_get_address_asset_events(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -498,7 +545,8 @@ def test_stx_get_address_asset_events(monkeypatch):
 
 def test_stx_get_token_metadata_ft(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -513,10 +561,14 @@ def test_stx_get_token_metadata_ft(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_token_metadata", mock_metadata)
-    response = asyncio.run(server._handle_stx_get_token_metadata({
-        "contract_id": "SP000.alex-token",
-        "token_type": "ft",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_token_metadata(
+            {
+                "contract_id": "SP000.alex-token",
+                "token_type": "ft",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["name"] == "Alex Token"
@@ -525,7 +577,8 @@ def test_stx_get_token_metadata_ft(monkeypatch):
 
 def test_stx_get_token_metadata_nft(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -538,10 +591,14 @@ def test_stx_get_token_metadata_nft(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_token_metadata", mock_metadata)
-    response = asyncio.run(server._handle_stx_get_token_metadata({
-        "contract_id": "SP000.my-nft",
-        "token_type": "nft",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_token_metadata(
+            {
+                "contract_id": "SP000.my-nft",
+                "token_type": "nft",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["name"] == "My NFT Collection"
@@ -556,7 +613,8 @@ def test_stx_get_token_metadata_missing_id():
 
 def test_stx_get_token_holders(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -574,9 +632,13 @@ def test_stx_get_token_holders(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_token_holders", mock_holders)
-    response = asyncio.run(server._handle_stx_get_token_holders({
-        "contract_id": "SP000.alex-token",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_token_holders(
+            {
+                "contract_id": "SP000.alex-token",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert len(payload["holders"]) == 2
@@ -596,7 +658,8 @@ def test_stx_get_token_holders_missing_id():
 
 def test_stx_get_network_info(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
 
@@ -619,7 +682,8 @@ def test_stx_get_network_info(monkeypatch):
 
 def test_stx_get_network_status(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
 
@@ -650,7 +714,8 @@ def test_stx_get_network_status(monkeypatch):
 
 def test_enhanced_stacking_info(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -699,11 +764,14 @@ def test_unknown_tool_returns_error():
 
 def test_stx_query_transactions_empty_result(monkeypatch):
     monkeypatch.setattr(
-        server, "BTCConfig",
+        server,
+        "BTCConfig",
         type("BTCConfig", (), {"from_env": classmethod(_make_dummy_btc_cfg)}),
     )
 
-    def mock_query(cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False):
+    def mock_query(
+        cfg, address=None, limit=50, offset=0, tx_type=None, unanchored=False
+    ):
         return {
             "address": "ST2CY5...",
             "transactions": [],
@@ -725,7 +793,8 @@ def test_stx_query_transactions_empty_result(monkeypatch):
 
 def test_stx_mempool_empty_stats(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -747,7 +816,8 @@ def test_stx_mempool_empty_stats(monkeypatch):
 
 def test_stx_get_recent_blocks_empty(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -769,7 +839,8 @@ def test_stx_get_recent_blocks_empty(monkeypatch):
 
 def test_stx_get_contract_events_empty(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -784,9 +855,13 @@ def test_stx_get_contract_events_empty(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_contract_events", mock_events)
-    response = asyncio.run(server._handle_stx_get_contract_events({
-        "contract_id": "SP000.empty-contract",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_contract_events(
+            {
+                "contract_id": "SP000.empty-contract",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["events"] == []
@@ -794,7 +869,8 @@ def test_stx_get_contract_events_empty(monkeypatch):
 
 def test_stx_get_address_asset_events_with_address(monkeypatch):
     monkeypatch.setattr(
-        server, "STXConfig",
+        server,
+        "STXConfig",
         type("STXConfig", (), {"from_env": classmethod(_make_dummy_stx_cfg)}),
     )
 
@@ -811,9 +887,13 @@ def test_stx_get_address_asset_events_with_address(monkeypatch):
         }
 
     monkeypatch.setattr(server, "stx_get_address_asset_events", mock_events)
-    response = asyncio.run(server._handle_stx_get_address_asset_events({
-        "address": "SP111TESTADDR",
-    }))
+    response = asyncio.run(
+        server._handle_stx_get_address_asset_events(
+            {
+                "address": "SP111TESTADDR",
+            }
+        )
+    )
     payload = _parse(response)
     assert payload["success"] is True
     assert payload["address"] == "SP111TESTADDR"

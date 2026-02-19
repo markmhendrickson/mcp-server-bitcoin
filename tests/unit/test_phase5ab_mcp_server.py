@@ -24,8 +24,16 @@ class DummyBTCCfg:
     max_send_btc = None
     max_fee_sats_env = None
     private_key_wif = "ctest"
-    candidate_wifs = [{"label": "p2wpkh", "addr_type": "p2wpkh", "wif": "ctest",
-                        "address": "tb1qtest", "public_key": "02ab", "derivation_path": "m/84'/1'/0'/0/0"}]
+    candidate_wifs = [
+        {
+            "label": "p2wpkh",
+            "addr_type": "p2wpkh",
+            "wif": "ctest",
+            "address": "tb1qtest",
+            "public_key": "02ab",
+            "derivation_path": "m/84'/1'/0'/0/0",
+        }
+    ]
 
 
 class DummySTXCfg:
@@ -54,18 +62,32 @@ def _mk_stx(*a, **k):
 def test_phase5a_tools_present():
     tools = asyncio.run(server.list_tools())
     names = {t.name for t in tools}
-    expected = {"tx_get_history", "tx_get_status", "tx_speed_up", "tx_cancel",
-                "wallet_get_network", "wallet_switch_network", "wallet_add_network",
-                "wallet_get_supported_methods"}
+    expected = {
+        "tx_get_history",
+        "tx_get_status",
+        "tx_speed_up",
+        "tx_cancel",
+        "wallet_get_network",
+        "wallet_switch_network",
+        "wallet_add_network",
+        "wallet_get_supported_methods",
+    }
     assert expected.issubset(names), f"Missing: {expected - names}"
 
 
 def test_phase5b_tools_present():
     tools = asyncio.run(server.list_tools())
     names = {t.name for t in tools}
-    expected = {"bns_lookup", "bns_get_names", "bns_register",
-                "market_get_prices", "market_get_history",
-                "portfolio_get_summary", "portfolio_get_assets", "portfolio_get_collectibles"}
+    expected = {
+        "bns_lookup",
+        "bns_get_names",
+        "bns_register",
+        "market_get_prices",
+        "market_get_history",
+        "portfolio_get_summary",
+        "portfolio_get_assets",
+        "portfolio_get_collectibles",
+    }
     assert expected.issubset(names), f"Missing: {expected - names}"
 
 
@@ -80,10 +102,17 @@ def test_total_tool_count():
 
 
 def test_tx_get_history(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
 
     def mock(cfg, chain, limit, offset):
-        return {"btc_transactions": [{"txid": "tx1"}], "btc_count": 1, "network": "testnet", "chain": chain}
+        return {
+            "btc_transactions": [{"txid": "tx1"}],
+            "btc_count": 1,
+            "network": "testnet",
+            "chain": chain,
+        }
 
     monkeypatch.setattr(server, "tx_get_history", mock)
     r = asyncio.run(server._handle_tx_get_history({"chain": "btc"}))
@@ -100,7 +129,9 @@ def test_tx_get_status_missing_txid():
 
 
 def test_tx_get_status(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
 
     def mock(cfg, txid, chain):
         return {"txid": txid, "chain": chain, "confirmed": True, "network": "testnet"}
@@ -132,7 +163,9 @@ def test_tx_cancel_missing_txid():
 
 
 def test_wallet_get_network(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
 
     def mock(cfg):
         return {"network": "testnet", "fee_tier": "hourFee"}
@@ -167,7 +200,9 @@ def test_wallet_add_network(monkeypatch):
         return {"name": name, "btc_api_url": btc, "stx_api_url": stx}
 
     monkeypatch.setattr(server, "wallet_add_network", mock)
-    r = asyncio.run(server._handle_wallet_add_network({"name": "custom", "btc_api_url": "http://x"}))
+    r = asyncio.run(
+        server._handle_wallet_add_network({"name": "custom", "btc_api_url": "http://x"})
+    )
     p = _parse(r)
     assert p["success"] is True
     assert p["name"] == "custom"
@@ -195,10 +230,17 @@ def test_bns_lookup_missing_name():
 
 
 def test_bns_lookup(monkeypatch):
-    monkeypatch.setattr(server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)}))
+    monkeypatch.setattr(
+        server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)})
+    )
 
     def mock(cfg, name):
-        return {"name": name, "address": "SPabc123", "status": "registered", "network": "testnet"}
+        return {
+            "name": name,
+            "address": "SPabc123",
+            "status": "registered",
+            "network": "testnet",
+        }
 
     monkeypatch.setattr(server, "bns_lookup", mock)
     r = asyncio.run(server._handle_bns_lookup({"name": "alice.btc"}))
@@ -208,10 +250,17 @@ def test_bns_lookup(monkeypatch):
 
 
 def test_bns_get_names(monkeypatch):
-    monkeypatch.setattr(server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)}))
+    monkeypatch.setattr(
+        server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)})
+    )
 
     def mock(cfg, addr):
-        return {"address": cfg.stx_address, "names": ["alice.btc"], "count": 1, "network": "testnet"}
+        return {
+            "address": cfg.stx_address,
+            "names": ["alice.btc"],
+            "count": 1,
+            "network": "testnet",
+        }
 
     monkeypatch.setattr(server, "bns_get_names", mock)
     r = asyncio.run(server._handle_bns_get_names({}))
@@ -234,7 +283,11 @@ def test_bns_register_missing_name():
 
 def test_market_get_prices(monkeypatch):
     def mock(coins, vs):
-        return {"prices": {"bitcoin": {"usd": 68000}}, "coins": coins or ["bitcoin"], "vs_currencies": vs or ["usd"]}
+        return {
+            "prices": {"bitcoin": {"usd": 68000}},
+            "coins": coins or ["bitcoin"],
+            "vs_currencies": vs or ["usd"],
+        }
 
     monkeypatch.setattr(server, "market_get_prices", mock)
     r = asyncio.run(server._handle_market_get_prices({}))
@@ -245,7 +298,12 @@ def test_market_get_prices(monkeypatch):
 
 def test_market_get_history(monkeypatch):
     def mock(coin, vs, days, interval):
-        return {"coin": coin, "data_points": 7, "prices": [{"timestamp": 1, "price": 68000}], "latest_price": 68000}
+        return {
+            "coin": coin,
+            "data_points": 7,
+            "prices": [{"timestamp": 1, "price": 68000}],
+            "latest_price": 68000,
+        }
 
     monkeypatch.setattr(server, "market_get_history", mock)
     r = asyncio.run(server._handle_market_get_history({}))
@@ -260,11 +318,20 @@ def test_market_get_history(monkeypatch):
 
 
 def test_portfolio_get_summary(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
-    monkeypatch.setattr(server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
+    monkeypatch.setattr(
+        server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)})
+    )
 
     def mock(btc_cfg, stx_cfg):
-        return {"total_value_usd": 1234.56, "btc": {"balance_btc": "0.01"}, "stx": {"balance_stx": "100"}, "network": "testnet"}
+        return {
+            "total_value_usd": 1234.56,
+            "btc": {"balance_btc": "0.01"},
+            "stx": {"balance_stx": "100"},
+            "network": "testnet",
+        }
 
     monkeypatch.setattr(server, "portfolio_get_summary", mock)
     r = asyncio.run(server._handle_portfolio_get_summary())
@@ -274,11 +341,19 @@ def test_portfolio_get_summary(monkeypatch):
 
 
 def test_portfolio_get_assets(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
-    monkeypatch.setattr(server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
+    monkeypatch.setattr(
+        server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)})
+    )
 
     def mock(btc_cfg, stx_cfg):
-        return {"assets": [{"symbol": "BTC"}, {"symbol": "STX"}], "count": 2, "network": "testnet"}
+        return {
+            "assets": [{"symbol": "BTC"}, {"symbol": "STX"}],
+            "count": 2,
+            "network": "testnet",
+        }
 
     monkeypatch.setattr(server, "portfolio_get_assets", mock)
     r = asyncio.run(server._handle_portfolio_get_assets())
@@ -288,11 +363,19 @@ def test_portfolio_get_assets(monkeypatch):
 
 
 def test_portfolio_get_collectibles(monkeypatch):
-    monkeypatch.setattr(server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)}))
-    monkeypatch.setattr(server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)}))
+    monkeypatch.setattr(
+        server, "BTCConfig", type("C", (), {"from_env": classmethod(_mk_btc)})
+    )
+    monkeypatch.setattr(
+        server, "STXConfig", type("C", (), {"from_env": classmethod(_mk_stx)})
+    )
 
     def mock(btc_cfg, stx_cfg, limit):
-        return {"collectibles": [{"type": "inscription", "id": "abc"}], "count": 1, "network": "testnet"}
+        return {
+            "collectibles": [{"type": "inscription", "id": "abc"}],
+            "count": 1,
+            "network": "testnet",
+        }
 
     monkeypatch.setattr(server, "portfolio_get_collectibles", mock)
     r = asyncio.run(server._handle_portfolio_get_collectibles({}))
